@@ -22,8 +22,15 @@ from tests.scanner.conftest import (
 # ---------------------------------------------------------------------------
 
 
-def _utc(*args: int) -> datetime:
-    return datetime(*args, tzinfo=timezone.utc)
+def _utc(
+    year: int,
+    month: int,
+    day: int,
+    hour: int,
+    minute: int = 0,
+    second: int = 0,
+) -> datetime:
+    return datetime(year, month, day, hour, minute, second, tzinfo=timezone.utc)
 
 
 def _window() -> ScanWindow:
@@ -34,22 +41,32 @@ def _window() -> ScanWindow:
     )
 
 
-def _cfg(**overrides) -> ScannerConfig:
-    defaults = dict(
-        min_price=1.0,
-        max_price=20.0,
-        gap_up_min_pct=5.0,
-        relative_volume_min=0.1,  # low so tests don't need huge volumes
-        max_float_shares=50_000_000,
-        require_news=False,  # disable news requirement by default
-        include_unknown_float=True,
-        active_tickers_n=3,
-        whitelist_symbols=[],
-        prior_profit_bias_weight=0.5,
-        leader_similarity_threshold=0.7,
+def _cfg(  # noqa: PLR0913
+    min_price: float = 1.0,
+    max_price: float = 20.0,
+    gap_up_min_pct: float = 5.0,
+    relative_volume_min: float = 0.1,
+    max_float_shares: int = 50_000_000,
+    require_news: bool = False,
+    include_unknown_float: bool = True,
+    active_tickers_n: int = 3,
+    whitelist_symbols: Optional[list[str]] = None,
+    prior_profit_bias_weight: float = 0.5,
+    leader_similarity_threshold: float = 0.7,
+) -> ScannerConfig:
+    return ScannerConfig(
+        min_price=min_price,
+        max_price=max_price,
+        gap_up_min_pct=gap_up_min_pct,
+        relative_volume_min=relative_volume_min,
+        max_float_shares=max_float_shares,
+        require_news=require_news,
+        include_unknown_float=include_unknown_float,
+        active_tickers_n=active_tickers_n,
+        whitelist_symbols=whitelist_symbols or [],
+        prior_profit_bias_weight=prior_profit_bias_weight,
+        leader_similarity_threshold=leader_similarity_threshold,
     )
-    defaults.update(overrides)
-    return ScannerConfig(**defaults)
 
 
 def _ta() -> TAConfig:

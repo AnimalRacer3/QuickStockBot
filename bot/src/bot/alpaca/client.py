@@ -394,10 +394,8 @@ class AlpacaClient(MarketClient):
 
     def get_calendar(self, start: str, end: str) -> list[CalendarDay]:
         data = self._broker_get("/v2/calendar", start=start, end=end)
-        return [
-            CalendarDay(d["date"], d["open"], d["close"])
-            for d in (data if isinstance(data, list) else [])
-        ]
+        rows: list[dict] = data if isinstance(data, list) else []  # type: ignore[type-arg]
+        return [CalendarDay(d["date"], d["open"], d["close"]) for d in rows]
 
     def get_clock(self) -> ClockInfo:
         raw = self._broker_get("/v2/clock")

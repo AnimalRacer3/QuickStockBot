@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from bot.alpaca.client import CalendarDay, ClockInfo
+from bot.scanner.models import ScanWindow
 from bot.scanner.window import get_scan_window, is_in_window
 from tests.scanner.conftest import FakeScannerClient
 
@@ -122,9 +123,7 @@ class TestGetScanWindow:
 
 
 class TestIsInWindow:
-    def _make_window(self) -> object:
-        from bot.scanner.models import ScanWindow
-
+    def _make_window(self) -> ScanWindow:
         return ScanWindow(
             window_start=_utc(2024, 1, 2, 13, 30),
             window_end=_utc(2024, 1, 2, 16, 30),
