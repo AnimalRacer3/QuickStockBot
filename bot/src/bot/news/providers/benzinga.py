@@ -17,7 +17,9 @@ BENZINGA_NEWS_URL = "https://api.benzinga.com/api/v2/news"
 
 
 class BenzingaNewsProvider(NewsProvider):
-    def __init__(self, api_key: str, http_client: Optional[httpx.Client] = None) -> None:
+    def __init__(
+        self, api_key: str, http_client: Optional[httpx.Client] = None
+    ) -> None:
         self._api_key = api_key
         self._http = http_client or httpx.Client(timeout=10.0)
 
@@ -47,7 +49,9 @@ class BenzingaNewsProvider(NewsProvider):
                     published = _parse_date(item.get("created", ""))
                     src = item.get("source", {})
                     source_name = (
-                        src.get("name", "benzinga") if isinstance(src, dict) else str(src)
+                        src.get("name", "benzinga")
+                        if isinstance(src, dict)
+                        else str(src)
                     )
                     articles.append(
                         Article(

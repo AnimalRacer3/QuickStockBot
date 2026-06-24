@@ -60,7 +60,9 @@ def test_score_articles_positive_mock() -> None:
 def test_score_articles_negative_mock() -> None:
     pipe = _mock_pipe("negative", pos=0.05, neg=0.90, neu=0.05)
     with patch("bot.news.sentiment._get_pipeline", return_value=pipe):
-        scored = score_articles([_article("Massive losses; bankruptcy filing imminent")])
+        scored = score_articles(
+            [_article("Massive losses; bankruptcy filing imminent")]
+        )
     assert scored[0].sentiment.label == "negative"
     assert scored[0].sentiment.score < 0
 
@@ -102,7 +104,10 @@ def test_aggregate_positive() -> None:
 
 
 def test_aggregate_negative() -> None:
-    scored = [_scored("negative", 0.05, 0.90, 0.05), _scored("negative", 0.10, 0.85, 0.05)]
+    scored = [
+        _scored("negative", 0.05, 0.90, 0.05),
+        _scored("negative", 0.10, 0.85, 0.05),
+    ]
     agg = aggregate_sentiment(scored)
     assert agg.label == "negative"
     assert agg.score < 0
@@ -136,7 +141,9 @@ def test_aggregate_averages_correctly() -> None:
 
 @pytest.mark.finbert
 def test_finbert_positive_sentence() -> None:
-    articles = [_article("Company reports record profits and raises full-year guidance")]
+    articles = [
+        _article("Company reports record profits and raises full-year guidance")
+    ]
     scored = score_articles(articles)
     assert scored[0].sentiment.label == "positive"
 

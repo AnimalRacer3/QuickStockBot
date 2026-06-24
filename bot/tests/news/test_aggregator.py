@@ -68,8 +68,22 @@ def test_deduplicate_custom_threshold() -> None:
 
 def test_deduplicate_cross_provider_first_wins() -> None:
     articles = [
-        Article(symbol="AAPL", headline="Apple hits record high", summary="", source="alpaca", url="https://a.com", published_at=_PUB),
-        Article(symbol="AAPL", headline="Apple hits record high", summary="", source="finnhub", url="https://b.com", published_at=_PUB),
+        Article(
+            symbol="AAPL",
+            headline="Apple hits record high",
+            summary="",
+            source="alpaca",
+            url="https://a.com",
+            published_at=_PUB,
+        ),
+        Article(
+            symbol="AAPL",
+            headline="Apple hits record high",
+            summary="",
+            source="finnhub",
+            url="https://b.com",
+            published_at=_PUB,
+        ),
     ]
     result = deduplicate(articles)
     assert len(result) == 1

@@ -63,7 +63,9 @@ def get_news_with_sentiment(
 
     results: list[TickerSentiment] = []
     for symbol, articles in by_symbol.items():
-        scored = score_articles(articles, news_config.finbert_model_path) if articles else []
+        scored = (
+            score_articles(articles, news_config.finbert_model_path) if articles else []
+        )
         agg = aggregate_sentiment(scored)
         results.append(TickerSentiment(symbol=symbol, articles=scored, aggregate=agg))
     return results

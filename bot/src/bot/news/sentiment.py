@@ -38,7 +38,9 @@ def _score_text(pipe: object, text: str) -> SentimentScore:
     neg = scores.get("negative", 0.0)
     neu = scores.get("neutral", 0.0)
     label = max(scores, key=scores.get)  # type: ignore[arg-type]
-    return SentimentScore(positive=pos, negative=neg, neutral=neu, score=pos - neg, label=label)
+    return SentimentScore(
+        positive=pos, negative=neg, neutral=neu, score=pos - neg, label=label
+    )
 
 
 def score_articles(
@@ -75,4 +77,6 @@ def aggregate_sentiment(scored: list[ArticleWithSentiment]) -> SentimentScore:
         label = "negative"
     else:
         label = "neutral"
-    return SentimentScore(positive=pos, negative=neg, neutral=neu, score=pos - neg, label=label)
+    return SentimentScore(
+        positive=pos, negative=neg, neutral=neu, score=pos - neg, label=label
+    )

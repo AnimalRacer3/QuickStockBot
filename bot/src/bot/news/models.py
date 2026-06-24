@@ -18,8 +18,8 @@ class SentimentScore(BaseModel):
     positive: float
     negative: float
     neutral: float
-    score: float   # positive - negative
-    label: str     # "positive" | "negative" | "neutral"
+    score: float  # positive - negative
+    label: str  # "positive" | "negative" | "neutral"
 
 
 class ArticleWithSentiment(BaseModel):

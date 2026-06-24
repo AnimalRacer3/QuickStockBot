@@ -16,7 +16,9 @@ FINNHUB_NEWS_URL = "https://finnhub.io/api/v1/company-news"
 
 
 class FinnhubNewsProvider(NewsProvider):
-    def __init__(self, api_key: str, http_client: Optional[httpx.Client] = None) -> None:
+    def __init__(
+        self, api_key: str, http_client: Optional[httpx.Client] = None
+    ) -> None:
         self._api_key = api_key
         self._http = http_client or httpx.Client(timeout=10.0)
 
