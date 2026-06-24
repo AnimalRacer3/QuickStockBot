@@ -26,7 +26,7 @@ def test_ema_constant_series():
 
 
 def test_ema_length():
-    vals = list(range(1, 21))  # 20 values
+    vals = [float(i) for i in range(1, 21)]  # 20 values
     result = _ema(vals, period=5)
     assert len(result) == 16  # 20 - 5 + 1
 

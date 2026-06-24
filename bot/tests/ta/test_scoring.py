@@ -35,7 +35,7 @@ def _no_match(tag: str = "morning_star") -> PatternMatch:
 # ---------------------------------------------------------------------------
 
 
-def test_score_in_range():
+def test_score_in_range() -> None:
     score, ta = compute_score(
         symbol="AAPL",
         has_news=True,
@@ -50,9 +50,9 @@ def test_score_in_range():
     assert ta.score == score
 
 
-def test_score_determinism():
+def test_score_determinism() -> None:
     """Same inputs always produce the same score."""
-    kwargs = dict(
+    s1, _ = compute_score(
         symbol="AAPL",
         has_news=True,
         sentiment_score=0.3,
@@ -62,61 +62,93 @@ def test_score_determinism():
         high=12.0,
         low=9.0,
     )
-    s1, _ = compute_score(**kwargs)
-    s2, _ = compute_score(**kwargs)
+    s2, _ = compute_score(
+        symbol="AAPL",
+        has_news=True,
+        sentiment_score=0.3,
+        macd_state=_macd(favorability=0.6),
+        pattern_matches=[_match("bullish_engulfing", 0.9)],
+        price=10.0,
+        high=12.0,
+        low=9.0,
+    )
     assert s1 == s2
 
 
-def test_score_no_news_lower_than_with_positive_news():
-    base = dict(
+def test_score_no_news_lower_than_with_positive_news() -> None:
+    macd = _macd()
+    s_no, _ = compute_score(
         symbol="X",
+        has_news=False,
         sentiment_score=0.8,
-        macd_state=_macd(),
+        macd_state=macd,
         pattern_matches=[],
         price=10.0,
         high=11.0,
         low=9.0,
     )
-    s_no, _ = compute_score(has_news=False, **base)
-    s_yes, _ = compute_score(has_news=True, **base)
+    s_yes, _ = compute_score(
+        symbol="X",
+        has_news=True,
+        sentiment_score=0.8,
+        macd_state=macd,
+        pattern_matches=[],
+        price=10.0,
+        high=11.0,
+        low=9.0,
+    )
     assert s_yes > s_no
 
 
-def test_score_ineligible_macd_lower():
-    base = dict(
+def test_score_ineligible_macd_lower() -> None:
+    s_eligible, _ = compute_score(
         symbol="X",
         has_news=False,
         sentiment_score=0.0,
+        macd_state=_macd(eligible=True, favorability=0.8),
         pattern_matches=[],
         price=10.0,
         high=11.0,
         low=9.0,
     )
-    s_eligible, _ = compute_score(
-        macd_state=_macd(eligible=True, favorability=0.8), **base
-    )
     s_inelig, _ = compute_score(
-        macd_state=_macd(eligible=False, favorability=0.8), **base
+        symbol="X",
+        has_news=False,
+        sentiment_score=0.0,
+        macd_state=_macd(eligible=False, favorability=0.8),
+        pattern_matches=[],
+        price=10.0,
+        high=11.0,
+        low=9.0,
     )
     assert s_eligible > s_inelig
 
 
-def test_score_patterns_increase_score():
-    base = dict(
+def test_score_patterns_increase_score() -> None:
+    s_none, _ = compute_score(
         symbol="X",
         has_news=False,
         sentiment_score=0.0,
         macd_state=_macd(eligible=False, favorability=-1.0),
+        pattern_matches=[],
         price=10.0,
         high=11.0,
         low=9.0,
     )
-    s_none, _ = compute_score(pattern_matches=[], **base)
-    s_match, _ = compute_score(pattern_matches=[_match(strength=1.0)], **base)
+    s_match, _ = compute_score(
+        symbol="X",
+        has_news=False,
+        sentiment_score=0.0,
+        macd_state=_macd(eligible=False, favorability=-1.0),
+        pattern_matches=[_match(strength=1.0)],
+        price=10.0,
+        high=11.0,
+        low=9.0,
+    )
     assert s_match > s_none
 
 
-def test_pattern_tags_in_ticker_ta():
+def test_pattern_tags_in_ticker_ta() -> None:
     _, ta = compute_score(
         symbol="TSLA",
         has_news=False,
@@ -131,7 +163,7 @@ def test_pattern_tags_in_ticker_ta():
     assert "morning_star" not in ta.pattern_tags
 
 
-def test_macd_state_in_ticker_ta():
+def test_macd_state_in_ticker_ta() -> None:
     state = _macd(favorability=0.9)
     _, ta = compute_score(
         symbol="TSLA",
@@ -146,38 +178,58 @@ def test_macd_state_in_ticker_ta():
     assert ta.macd_state is state
 
 
-def test_price_at_low_scores_higher():
+def test_price_at_low_scores_higher() -> None:
     """Price near day low → more room to run → higher score."""
-    base = dict(
+    macd = _macd(eligible=False, favorability=-1.0)
+    s_low, _ = compute_score(
         symbol="X",
         has_news=False,
         sentiment_score=0.0,
-        macd_state=_macd(eligible=False, favorability=-1.0),
+        macd_state=macd,
         pattern_matches=[],
+        price=9.0,
         high=11.0,
         low=9.0,
     )
-    s_low, _ = compute_score(price=9.0, **base)  # at low
-    s_high, _ = compute_score(price=11.0, **base)  # at high
+    s_high, _ = compute_score(
+        symbol="X",
+        has_news=False,
+        sentiment_score=0.0,
+        macd_state=macd,
+        pattern_matches=[],
+        price=11.0,
+        high=11.0,
+        low=9.0,
+    )
     assert s_low > s_high
 
 
-def test_negative_sentiment_reduces_score():
-    base = dict(
+def test_negative_sentiment_reduces_score() -> None:
+    macd = _macd(eligible=False, favorability=-1.0)
+    s_pos, _ = compute_score(
         symbol="X",
         has_news=True,
-        macd_state=_macd(eligible=False, favorability=-1.0),
+        sentiment_score=1.0,
+        macd_state=macd,
         pattern_matches=[],
         price=10.0,
         high=11.0,
         low=9.0,
     )
-    s_pos, _ = compute_score(sentiment_score=1.0, **base)
-    s_neg, _ = compute_score(sentiment_score=-1.0, **base)
+    s_neg, _ = compute_score(
+        symbol="X",
+        has_news=True,
+        sentiment_score=-1.0,
+        macd_state=macd,
+        pattern_matches=[],
+        price=10.0,
+        high=11.0,
+        low=9.0,
+    )
     assert s_pos > s_neg
 
 
-def test_score_clamped_minimum():
+def test_score_clamped_minimum() -> None:
     """Score cannot go below 0 even with maximally bad inputs."""
     score, _ = compute_score(
         symbol="X",
@@ -192,7 +244,7 @@ def test_score_clamped_minimum():
     assert score >= 0.0
 
 
-def test_score_clamped_maximum():
+def test_score_clamped_maximum() -> None:
     """Score cannot exceed 100."""
     score, _ = compute_score(
         symbol="X",
