@@ -1,0 +1,219 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "QuickStockBot Relay Protocol",
+  "version": "1.0.0",
+  "description": "Frozen wire protocol between Bot ↔ Relay ↔ Web. Breaking changes require a new version field.",
+
+  "envelope": {
+    "description": "Every frame sent over the WebSocket is wrapped in this envelope.",
+    "schema": {
+      "type": "object",
+      "required": ["type", "id", "payload"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Message type discriminator (see bot_to_relay_types / relay_to_bot_types)."
+        },
+        "id": {
+          "type": "string",
+          "description": "UUID v4. For RPC: request and response share the same id."
+        },
+        "payload": {
+          "type": "object",
+          "description": "Message-specific payload (see payload_schemas below)."
+        }
+      }
+    }
+  },
+
+  "bot_to_relay_message_types": {
+    "register": {
+      "description": "First frame the bot sends after TCP connection. Must be sent before any other frame.",
+      "payload": {
+        "type": "object",
+        "required": ["bot_id", "license_key", "connection_password_proof", "version"],
+        "properties": {
+          "bot_id": { "type": "string" },
+          "license_key": { "type": "string" },
+          "connection_password_proof": {
+            "type": "string",
+            "description": "HMAC-SHA256(nonce_from_auth_challenge, connection_password), hex-encoded."
+          },
+          "version": {
+            "type": "string",
+            "description": "Bot software version string, e.g. '0.1.0'."
+          }
+        }
+      }
+    },
+    "log": {
+      "description": "A single LogEvent emitted by the bot.",
+      "payload": { "$ref": "https://quickstockbot.dev/schemas/log-event.json" }
+    },
+    "state_update": {
+      "description": "Full or partial snapshot of one or more TickerState objects.",
+      "payload": {
+        "type": "object",
+        "required": ["tickers"],
+        "properties": {
+          "tickers": {
+            "type": "array",
+            "items": { "$ref": "https://quickstockbot.dev/schemas/ticker-state.json" }
+          },
+          "account": { "$ref": "https://quickstockbot.dev/schemas/account-snapshot.json" }
+        }
+      }
+    },
+    "rpc_response": {
+      "description": "Response to a relay→bot rpc_request. Uses the same id as the request.",
+      "payload": {
+        "type": "object",
+        "required": ["result"],
+        "properties": {
+          "result": {
+            "description": "Method-specific result object (see rpc_methods)."
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+
+  "relay_to_bot_message_types": {
+    "auth_challenge": {
+      "description": "Sent by Relay immediately after TCP connection, before the bot sends register.",
+      "payload": {
+        "type": "object",
+        "required": ["nonce"],
+        "properties": {
+          "nonce": {
+            "type": "string",
+            "description": "Random string the bot must include in its connection_password_proof HMAC."
+          }
+        }
+      }
+    },
+    "rpc_request": {
+      "description": "Relay forwards an RPC call from the Web dashboard to the bot.",
+      "payload": {
+        "type": "object",
+        "required": ["method"],
+        "properties": {
+          "method": {
+            "type": "string",
+            "description": "One of the values in rpc_methods."
+          },
+          "params": {
+            "type": "object",
+            "description": "Method-specific parameters."
+          }
+        }
+      }
+    }
+  },
+
+  "rpc_methods": {
+    "get_state": {
+      "description": "Return the current AccountSnapshot and the list of active TickerState objects.",
+      "params": {},
+      "result": {
+        "account": { "$ref": "https://quickstockbot.dev/schemas/account-snapshot.json" },
+        "tickers": { "type": "array", "items": { "$ref": "https://quickstockbot.dev/schemas/ticker-state.json" } }
+      }
+    },
+    "get_active_tickers": {
+      "description": "Return only the list of currently-monitored ticker symbols.",
+      "params": {},
+      "result": {
+        "symbols": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "get_ticker_detail": {
+      "description": "Return the full TickerState for a single symbol.",
+      "params": { "symbol": { "type": "string" } },
+      "result": { "$ref": "https://quickstockbot.dev/schemas/ticker-state.json" }
+    },
+    "get_settings": {
+      "description": "Return the current Settings object.",
+      "params": {},
+      "result": { "$ref": "https://quickstockbot.dev/schemas/settings.json" }
+    },
+    "update_settings": {
+      "description": "Merge a partial Settings patch into the current config and persist to disk.",
+      "params": { "patch": { "$ref": "https://quickstockbot.dev/schemas/settings.json" } },
+      "result": { "$ref": "https://quickstockbot.dev/schemas/settings.json" }
+    },
+    "get_lists": {
+      "description": "Return the current watchlist and blacklist arrays.",
+      "params": {},
+      "result": {
+        "watchlist": { "type": "array", "items": { "type": "string" } },
+        "blacklist": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "update_lists": {
+      "description": "Replace the watchlist and/or blacklist arrays.",
+      "params": {
+        "watchlist": { "type": "array", "items": { "type": "string" } },
+        "blacklist": { "type": "array", "items": { "type": "string" } }
+      },
+      "result": {
+        "watchlist": { "type": "array", "items": { "type": "string" } },
+        "blacklist": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "get_trade_history": {
+      "description": "Return a paginated list of completed Trade objects.",
+      "params": {
+        "limit": { "type": "integer", "minimum": 1, "maximum": 500, "default": 100 },
+        "offset": { "type": "integer", "minimum": 0, "default": 0 }
+      },
+      "result": {
+        "trades": { "type": "array", "items": { "$ref": "https://quickstockbot.dev/schemas/trade.json" } },
+        "total": { "type": "integer" }
+      }
+    },
+    "get_order_detail": {
+      "description": "Return the current state of a single Order.",
+      "params": { "order_id": { "type": "string" } },
+      "result": { "$ref": "https://quickstockbot.dev/schemas/order.json" }
+    },
+    "subscribe_logs": {
+      "description": "Request the bot to push future LogEvent frames over the existing connection.",
+      "params": {
+        "categories": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["info", "warning", "error", "trade", "order", "system"] },
+          "description": "Filter to specific categories; empty array = all categories."
+        },
+        "min_level": {
+          "type": "string",
+          "enum": ["debug", "info", "warning", "error"],
+          "default": "info"
+        }
+      },
+      "result": { "subscribed": { "type": "boolean" } }
+    }
+  },
+
+  "auth_fields": {
+    "license_key": "string — issued at purchase, validated server-side",
+    "bot_id": "string — stable UUID identifying the bot instance",
+    "connection_password_proof": "string — HMAC-SHA256(nonce, connection_password) hex, prevents replay"
+  },
+
+  "error_codes": {
+    "AUTH_FAILED": "Authentication rejected (bad license key or proof).",
+    "NOT_REGISTERED": "Bot sent a non-register frame before registering.",
+    "UNKNOWN_METHOD": "RPC method name not in rpc_methods list.",
+    "INVALID_PARAMS": "RPC params failed schema validation.",
+    "INTERNAL": "Unexpected bot-side error processing the request."
+  }
+}
