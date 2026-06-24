@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
@@ -23,7 +25,8 @@ def _article(headline: str, symbol: str = "AAPL") -> Article:
 # deduplicate
 # ---------------------------------------------------------------------------
 
-def test_deduplicate_removes_exact_duplicate():
+
+def test_deduplicate_removes_exact_duplicate() -> None:
     articles = [
         _article("Apple stock surges after earnings beat"),
         _article("Apple stock surges after earnings beat"),
@@ -31,15 +34,15 @@ def test_deduplicate_removes_exact_duplicate():
     assert len(deduplicate(articles)) == 1
 
 
-def test_deduplicate_removes_fuzzy_duplicate():
+def test_deduplicate_removes_fuzzy_duplicate() -> None:
     articles = [
         _article("Apple stock surges following strong earnings report"),
-        _article("Apple stock surges following strong earnings"),  # very similar
+        _article("Apple stock surges following strong earnings"),
     ]
     assert len(deduplicate(articles)) == 1
 
 
-def test_deduplicate_keeps_distinct_articles():
+def test_deduplicate_keeps_distinct_articles() -> None:
     articles = [
         _article("Apple stock surges after earnings beat"),
         _article("Tesla faces supply chain challenges in 2024"),
@@ -47,38 +50,38 @@ def test_deduplicate_keeps_distinct_articles():
     assert len(deduplicate(articles)) == 2
 
 
-def test_deduplicate_skips_empty_headlines():
+def test_deduplicate_skips_empty_headlines() -> None:
     articles = [_article(""), _article("Apple earnings strong")]
     result = deduplicate(articles)
     assert len(result) == 1
     assert result[0].headline == "Apple earnings strong"
 
 
-def test_deduplicate_custom_threshold():
+def test_deduplicate_custom_threshold() -> None:
     articles = [
         _article("Apple stock surges after earnings"),
         _article("Apple stock dips after earnings"),
     ]
-    # With very high threshold these are distinct; with lower threshold they merge
     assert len(deduplicate(articles, threshold=0.99)) == 2
     assert len(deduplicate(articles, threshold=0.5)) == 1
 
 
-def test_deduplicate_cross_provider_dedup():
+def test_deduplicate_cross_provider_first_wins() -> None:
     articles = [
-        Article("AAPL", "Apple hits record high", "", "alpaca", "https://a.com", _PUB),
-        Article("AAPL", "Apple hits record high", "", "finnhub", "https://b.com", _PUB),
+        Article(symbol="AAPL", headline="Apple hits record high", summary="", source="alpaca", url="https://a.com", published_at=_PUB),
+        Article(symbol="AAPL", headline="Apple hits record high", summary="", source="finnhub", url="https://b.com", published_at=_PUB),
     ]
     result = deduplicate(articles)
     assert len(result) == 1
-    assert result[0].source == "alpaca"  # first one wins
+    assert result[0].source == "alpaca"
 
 
 # ---------------------------------------------------------------------------
 # collect
 # ---------------------------------------------------------------------------
 
-def test_collect_groups_articles_by_symbol():
+
+def test_collect_groups_articles_by_symbol() -> None:
     provider = MagicMock()
     provider.name = "mock"
     provider.fetch.return_value = [
@@ -90,7 +93,7 @@ def test_collect_groups_articles_by_symbol():
     assert len(result["TSLA"]) == 1
 
 
-def test_collect_returns_empty_lists_for_symbols_with_no_news():
+def test_collect_returns_empty_lists_when_no_news() -> None:
     provider = MagicMock()
     provider.name = "mock"
     provider.fetch.return_value = []
@@ -99,7 +102,7 @@ def test_collect_returns_empty_lists_for_symbols_with_no_news():
     assert result["TSLA"] == []
 
 
-def test_collect_deduplicates_across_providers():
+def test_collect_deduplicates_across_providers() -> None:
     p1 = MagicMock()
     p1.name = "provider_a"
     p1.fetch.return_value = [_article("Breaking: Apple earnings beat", "AAPL")]
@@ -112,20 +115,20 @@ def test_collect_deduplicates_across_providers():
     assert len(result["AAPL"]) == 1
 
 
-def test_collect_continues_if_provider_raises():
-    bad_provider = MagicMock()
-    bad_provider.name = "bad"
-    bad_provider.fetch.side_effect = RuntimeError("network down")
+def test_collect_continues_if_provider_raises() -> None:
+    bad = MagicMock()
+    bad.name = "bad"
+    bad.fetch.side_effect = RuntimeError("network down")
 
-    good_provider = MagicMock()
-    good_provider.name = "good"
-    good_provider.fetch.return_value = [_article("AAPL up 5%", "AAPL")]
+    good = MagicMock()
+    good.name = "good"
+    good.fetch.return_value = [_article("AAPL up 5%", "AAPL")]
 
-    result = collect([bad_provider, good_provider], ["AAPL"], SINCE)
+    result = collect([bad, good], ["AAPL"], SINCE)
     assert len(result["AAPL"]) == 1
 
 
-def test_collect_ignores_articles_for_unknown_symbols():
+def test_collect_ignores_articles_for_unknown_symbols() -> None:
     provider = MagicMock()
     provider.name = "mock"
     provider.fetch.return_value = [_article("NVDA news", "NVDA")]

@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional
 
-from ..models import Article
+from bot.news.models import Article
 
 
 class NewsProvider(ABC):
@@ -12,7 +13,3 @@ class NewsProvider(ABC):
 
     @abstractmethod
     def fetch(self, symbols: list[str], since: datetime) -> list[Article]: ...
-
-    @classmethod
-    @abstractmethod
-    def from_config(cls, config) -> Optional["NewsProvider"]: ...

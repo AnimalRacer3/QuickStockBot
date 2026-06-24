@@ -1,11 +1,12 @@
-import re
+from __future__ import annotations
+
 import logging
+import re
 from datetime import datetime
 from difflib import SequenceMatcher
-from typing import List
 
-from .models import Article
-from .providers.base import NewsProvider
+from bot.news.models import Article
+from bot.news.providers.base import NewsProvider
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +21,7 @@ def _similarity(a: str, b: str) -> float:
     return SequenceMatcher(None, a, b).ratio()
 
 
-def deduplicate(articles: List[Article], threshold: float = 0.85) -> List[Article]:
+def deduplicate(articles: list[Article], threshold: float = 0.85) -> list[Article]:
     seen: list[str] = []
     result: list[Article] = []
     for article in articles:
@@ -35,23 +36,25 @@ def deduplicate(articles: List[Article], threshold: float = 0.85) -> List[Articl
 
 
 def collect(
-    providers: List[NewsProvider],
-    symbols: List[str],
+    providers: list[NewsProvider],
+    symbols: list[str],
     since: datetime,
-) -> dict[str, List[Article]]:
-    all_articles: List[Article] = []
+) -> dict[str, list[Article]]:
+    all_articles: list[Article] = []
     for provider in providers:
         try:
             fetched = provider.fetch(symbols, since)
             logger.info("Provider %s returned %d articles", provider.name, len(fetched))
             all_articles.extend(fetched)
         except Exception as exc:
-            logger.error("Provider %s raised an unexpected error: %s", provider.name, exc)
+            logger.error("Provider %s raised: %s", provider.name, exc)
 
     deduped = deduplicate(all_articles)
-    logger.info("After dedup: %d articles (from %d raw)", len(deduped), len(all_articles))
+    logger.info(
+        "After dedup: %d articles (from %d raw)", len(deduped), len(all_articles)
+    )
 
-    by_symbol: dict[str, List[Article]] = {s: [] for s in symbols}
+    by_symbol: dict[str, list[Article]] = {s: [] for s in symbols}
     for article in deduped:
         if article.symbol in by_symbol:
             by_symbol[article.symbol].append(article)
