@@ -363,6 +363,28 @@ paket-files/
 __pycache__/
 *.pyc
 
+# Python
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.eggs/
+pip-wheel-metadata/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# Environment / secrets — never commit real keys
+.env
+.env.local
+
 # Cake - Uncomment if you are using it
 # tools/**
 # !tools/packages.config
