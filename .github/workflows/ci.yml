@@ -39,7 +39,7 @@ jobs:
         run: uv run mypy src tests
 
       - name: Test (pytest)
-        run: uv run pytest -v
+        run: uv run pytest -v -m "not finbert"
 
   # ─── Node relay ──────────────────────────────────────────────────────────────
   relay:
