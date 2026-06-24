@@ -16,4 +16,12 @@ export const DEFAULT_SETTINGS: Record<string, string> = {
   scan_interval_ms: '60000',
   min_volume: '100000',
   paper_trading: 'true',
+  // Section 4 — technical analysis
+  macd_fast: '12',
+  macd_slow: '26',
+  macd_signal: '9',
+  macd_slope_lookback: '3',
+  macd_enforce_above_zero: 'true',
+  pattern_candle_lookback: '5',
+  enabled_patterns: 'bullish_engulfing,hammer,morning_star,bullish_continuation',
 };
