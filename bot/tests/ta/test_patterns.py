@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import pytest
 
-from bot.ta.config import TAConfig
 from bot.ta.patterns import (
     detect_bullish_continuation,
     detect_bullish_engulfing,
@@ -12,7 +11,6 @@ from bot.ta.patterns import (
     run_enabled_patterns,
 )
 from tests.ta.conftest import make_bar
-
 
 # ---------------------------------------------------------------------------
 # bullish_engulfing

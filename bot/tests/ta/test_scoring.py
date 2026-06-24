@@ -1,8 +1,6 @@
 """Scoring tests — no network required."""
 from __future__ import annotations
 
-import pytest
-
 from bot.ta.models import MacdState, PatternMatch
 from bot.ta.scoring import compute_score
 

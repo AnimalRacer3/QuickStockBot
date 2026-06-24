@@ -1,10 +1,6 @@
 """Pattern signature and similarity tests — no network required."""
 from __future__ import annotations
 
-import math
-
-import pytest
-
 from bot.ta.similarity import pattern_signature, pattern_similarity
 from tests.ta.conftest import make_bar
 

@@ -27,13 +27,13 @@ def pattern_signature(bars: list[Bar]) -> list[float]:
 
     vector: list[float] = []
     for b in bars:
-        o, h, l, c = float(b.open), float(b.high), float(b.low), float(b.close)
-        rng = h - l
+        o, h, lo, c = float(b.open), float(b.high), float(b.low), float(b.close)
+        rng = h - lo
 
         ret = (c - o) / (o + _EPS)
         body_r = abs(c - o) / (rng + _EPS)
         upper_r = (h - max(o, c)) / (rng + _EPS)
-        lower_r = (min(o, c) - l) / (rng + _EPS)
+        lower_r = (min(o, c) - lo) / (rng + _EPS)
         vol_n = b.volume / (mean_vol + _EPS)
 
         vector.extend([ret, body_r, upper_r, lower_r, vol_n])

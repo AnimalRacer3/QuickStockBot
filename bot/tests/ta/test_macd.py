@@ -1,8 +1,6 @@
 """MACD classifier tests — no network required."""
 from __future__ import annotations
 
-import pytest
-
 from bot.ta.config import TAConfig
 from bot.ta.macd import (
     _ema,
