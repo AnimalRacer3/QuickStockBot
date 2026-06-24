@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Optional
 from uuid import uuid4
 
-from bot.alpaca.client import MarketClient
+from bot.alpaca.client import CalendarDay, ClockInfo, MarketClient
 from bot.models import (
     AccountSnapshot,
     Asset,
@@ -37,6 +37,17 @@ class FakeMarketClient(MarketClient):
     # ------------------------------------------------------------------
     # MarketClient implementation
     # ------------------------------------------------------------------
+
+    def get_calendar(self, start: str, end: str) -> list[CalendarDay]:
+        return [CalendarDay(date="2024-01-15", open_="09:30", close="16:00")]
+
+    def get_clock(self) -> ClockInfo:
+        return ClockInfo(
+            timestamp="2024-01-15T09:30:00-05:00",
+            is_open=True,
+            next_open="2024-01-16T09:30:00-05:00",
+            next_close="2024-01-15T16:00:00-05:00",
+        )
 
     def get_bars(
         self,
