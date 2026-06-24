@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bot.scanner.filters import (
     compute_gap_pct,
     compute_rvol,
@@ -13,7 +11,6 @@ from bot.scanner.filters import (
     passes_price_filter,
     passes_rvol_filter,
 )
-
 
 # ---------------------------------------------------------------------------
 # Price filter

@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import datetime, timezone
 from typing import Optional
 from unittest.mock import patch
-
-import pytest
 
 from bot.alpaca.client import CalendarDay, ClockInfo
 from bot.scanner.config import ScannerConfig
@@ -17,10 +14,8 @@ from bot.ta.config import TAConfig
 from tests.scanner.conftest import (
     FakeScannerClient,
     make_bars,
-    make_neutral_sentiment,
     make_positive_sentiment,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

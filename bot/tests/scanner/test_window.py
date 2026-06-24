@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
-import pytest
-
 from bot.alpaca.client import CalendarDay, ClockInfo
 from bot.scanner.window import get_scan_window, is_in_window
 from tests.scanner.conftest import FakeScannerClient

@@ -2,11 +2,6 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
-from datetime import datetime, timezone
-
-import pytest
-
 from bot.scanner.leaders import assign_roles
 from bot.scanner.models import TickerState
 from bot.ta.models import MacdState

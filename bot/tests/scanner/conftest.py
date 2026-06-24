@@ -5,9 +5,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
-from unittest.mock import MagicMock
-
-import pytest
 
 from bot.alpaca.client import CalendarDay, ClockInfo, MarketClient
 from bot.models import (
@@ -16,14 +13,16 @@ from bot.models import (
     Bar,
     NewsItem,
     Order,
-    OrderSide,
-    OrderType,
     Position,
     Quote,
     TimeInForce,
 )
-from bot.news.models import ArticleWithSentiment, SentimentScore, TickerSentiment, Article
-
+from bot.news.models import (
+    Article,
+    ArticleWithSentiment,
+    SentimentScore,
+    TickerSentiment,
+)
 
 # ---------------------------------------------------------------------------
 # Bar factory
