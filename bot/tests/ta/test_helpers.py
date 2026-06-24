@@ -1,4 +1,5 @@
 """Helper function tests — no network required."""
+
 from __future__ import annotations
 
 import pytest
@@ -37,7 +38,7 @@ def test_vwap_single_bar():
 
 def test_vwap_multiple_bars():
     bars = [
-        make_bar(10.0, 12.0, 9.0, 11.0, volume=100),   # typical=10.667
+        make_bar(10.0, 12.0, 9.0, 11.0, volume=100),  # typical=10.667
         make_bar(11.0, 14.0, 10.0, 13.0, volume=200),  # typical=12.333
     ]
     t1 = (12.0 + 9.0 + 11.0) / 3.0

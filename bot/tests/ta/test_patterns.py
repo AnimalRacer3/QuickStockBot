@@ -1,4 +1,5 @@
 """Pattern detector tests — no network required."""
+
 from __future__ import annotations
 
 import pytest
@@ -35,7 +36,7 @@ def test_bullish_engulfing_no_match_both_bullish():
 
 def test_bullish_engulfing_no_match_partial_engulf():
     prev = make_bar(10.0, 10.5, 9.5, 9.6)  # bearish
-    curr = make_bar(9.7, 10.2, 9.4, 9.9)   # bullish but doesn't engulf (open too high)
+    curr = make_bar(9.7, 10.2, 9.4, 9.9)  # bullish but doesn't engulf (open too high)
     result = detect_bullish_engulfing([prev, curr])
     assert not result.matched
 
@@ -88,9 +89,9 @@ def test_hammer_no_bars():
 
 
 def test_morning_star_match():
-    c1 = make_bar(open_=12.0, high=12.2, low=9.5, close=9.7)   # large bearish
-    c2 = make_bar(open_=9.5,  high=9.8,  low=9.2, close=9.6)   # tiny body
-    c3 = make_bar(open_=9.7,  high=12.5, low=9.5, close=11.5)  # bullish, above midpoint
+    c1 = make_bar(open_=12.0, high=12.2, low=9.5, close=9.7)  # large bearish
+    c2 = make_bar(open_=9.5, high=9.8, low=9.2, close=9.6)  # tiny body
+    c3 = make_bar(open_=9.7, high=12.5, low=9.5, close=11.5)  # bullish, above midpoint
     result = detect_morning_star([c1, c2, c3])
     assert result.matched
     assert result.tag == "morning_star"
@@ -98,16 +99,16 @@ def test_morning_star_match():
 
 
 def test_morning_star_c3_not_above_midpoint():
-    c1 = make_bar(12.0, 12.2, 9.5, 9.7)    # bearish, mid ≈ 10.85
-    c2 = make_bar(9.5,  9.8,  9.2, 9.6)
-    c3 = make_bar(9.7,  10.5, 9.5, 10.5)   # closes at 10.5, below mid 10.85
+    c1 = make_bar(12.0, 12.2, 9.5, 9.7)  # bearish, mid ≈ 10.85
+    c2 = make_bar(9.5, 9.8, 9.2, 9.6)
+    c3 = make_bar(9.7, 10.5, 9.5, 10.5)  # closes at 10.5, below mid 10.85
     result = detect_morning_star([c1, c2, c3])
     assert not result.matched
 
 
 def test_morning_star_c2_too_large():
     c1 = make_bar(12.0, 12.2, 9.5, 9.7)
-    c2 = make_bar(10.0, 11.0, 9.0, 11.0)   # big body
+    c2 = make_bar(10.0, 11.0, 9.0, 11.0)  # big body
     c3 = make_bar(11.0, 13.0, 10.5, 12.5)
     result = detect_morning_star([c1, c2, c3])
     assert not result.matched
@@ -125,7 +126,7 @@ def test_morning_star_too_few_bars():
 
 def test_bullish_continuation_match():
     bars = [
-        make_bar(10.0, 11.0, 9.8, 10.8),   # bullish
+        make_bar(10.0, 11.0, 9.8, 10.8),  # bullish
         make_bar(10.8, 11.5, 10.5, 11.3),  # bullish
         make_bar(11.3, 12.0, 11.0, 11.8),  # bullish
         make_bar(11.8, 12.5, 11.5, 12.3),  # bullish
@@ -139,9 +140,9 @@ def test_bullish_continuation_match():
 def test_bullish_continuation_mixed_but_majority():
     bars = [
         make_bar(10.0, 11.0, 9.8, 10.8),  # bullish
-        make_bar(10.8, 11.0, 10.0, 10.2), # bearish
-        make_bar(10.2, 11.5, 10.0, 11.3), # bullish
-        make_bar(11.3, 12.0, 11.0, 11.8), # bullish
+        make_bar(10.8, 11.0, 10.0, 10.2),  # bearish
+        make_bar(10.2, 11.5, 10.0, 11.3),  # bullish
+        make_bar(11.3, 12.0, 11.0, 11.8),  # bullish
     ]
     result = detect_bullish_continuation(bars)
     assert result.matched
@@ -152,7 +153,9 @@ def test_bullish_continuation_no_match_mostly_bearish():
     bars = [
         make_bar(12.0, 12.5, 11.0, 11.2),  # bearish
         make_bar(11.5, 12.0, 10.5, 10.8),  # bearish
-        make_bar(11.0, 11.5, 10.0, 11.0),  # bullish (at close, same open→close actually bullish)
+        make_bar(
+            11.0, 11.5, 10.0, 11.0
+        ),  # bullish (at close, same open→close actually bullish)
     ]
     result = detect_bullish_continuation(bars)
     assert not result.matched
@@ -186,7 +189,7 @@ def test_run_enabled_patterns_respects_lookback():
     # 10 bars, but lookback=2 means only the last 2 are used for engulfing detection
     bars = [
         make_bar(10.0, 10.5, 9.0, 9.2),  # bearish
-        make_bar(8.8,  11.0, 8.5, 10.5), # bullish, engulfs
+        make_bar(8.8, 11.0, 8.5, 10.5),  # bullish, engulfs
     ]
     results = run_enabled_patterns(bars, enabled=["bullish_engulfing"], lookback=2)
     assert results[0].matched

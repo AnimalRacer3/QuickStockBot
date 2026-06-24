@@ -1,4 +1,5 @@
 """Scoring tests — no network required."""
+
 from __future__ import annotations
 
 from bot.ta.models import MacdState, PatternMatch
@@ -13,7 +14,11 @@ def _macd(
     eligible: bool = True,
 ) -> MacdState:
     return MacdState(
-        value=value, slope=slope, hist=hist, favorability=favorability, eligible=eligible
+        value=value,
+        slope=slope,
+        hist=hist,
+        favorability=favorability,
+        eligible=eligible,
     )
 
 
@@ -87,8 +92,12 @@ def test_score_ineligible_macd_lower():
         high=11.0,
         low=9.0,
     )
-    s_eligible, _ = compute_score(macd_state=_macd(eligible=True, favorability=0.8), **base)
-    s_inelig, _ = compute_score(macd_state=_macd(eligible=False, favorability=0.8), **base)
+    s_eligible, _ = compute_score(
+        macd_state=_macd(eligible=True, favorability=0.8), **base
+    )
+    s_inelig, _ = compute_score(
+        macd_state=_macd(eligible=False, favorability=0.8), **base
+    )
     assert s_eligible > s_inelig
 
 
@@ -148,7 +157,7 @@ def test_price_at_low_scores_higher():
         high=11.0,
         low=9.0,
     )
-    s_low, _ = compute_score(price=9.0, **base)   # at low
+    s_low, _ = compute_score(price=9.0, **base)  # at low
     s_high, _ = compute_score(price=11.0, **base)  # at high
     assert s_low > s_high
 

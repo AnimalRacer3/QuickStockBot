@@ -1,4 +1,5 @@
 """MACD classifier tests — no network required."""
+
 from __future__ import annotations
 
 from bot.ta.config import TAConfig

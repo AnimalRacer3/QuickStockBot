@@ -1,4 +1,5 @@
 """Pattern signature and similarity tests — no network required."""
+
 from __future__ import annotations
 
 from bot.ta.similarity import pattern_signature, pattern_similarity
@@ -57,7 +58,9 @@ def test_similarity_symmetry():
     bars_b = [make_bar(20.0, 22.0, 19.0, 21.0) for _ in range(5)]
     sig_a = pattern_signature(bars_a)
     sig_b = pattern_signature(bars_b)
-    assert abs(pattern_similarity(sig_a, sig_b) - pattern_similarity(sig_b, sig_a)) < 1e-9
+    assert (
+        abs(pattern_similarity(sig_a, sig_b) - pattern_similarity(sig_b, sig_a)) < 1e-9
+    )
 
 
 def test_similarity_in_range():

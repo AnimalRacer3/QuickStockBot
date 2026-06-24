@@ -45,7 +45,7 @@ def compute_macd(
         return [], [], []
 
     # Align macd_line to sig_line (sig_line is shorter).
-    macd_aligned = macd_line[len(macd_line) - len(sig_line):]
+    macd_aligned = macd_line[len(macd_line) - len(sig_line) :]
     histogram = [m - s for m, s in zip(macd_aligned, sig_line)]
     return macd_aligned, sig_line, histogram
 
@@ -90,7 +90,7 @@ def _favorability_full(slope: float, hist: float, value: float) -> float:
     """
     ref = abs(value) if abs(value) > 1e-10 else 1e-10
     norm_slope = math.tanh(abs(slope) / ref * 5.0)  # [0, 1)
-    hist_adj = math.tanh(hist / ref * 3.0) * 0.1    # small modifier in (-0.1, 0.1)
+    hist_adj = math.tanh(hist / ref * 3.0) * 0.1  # small modifier in (-0.1, 0.1)
 
     above = value > 0
     rising = slope > 1e-10  # treat near-zero slope (floating-point noise) as flat
