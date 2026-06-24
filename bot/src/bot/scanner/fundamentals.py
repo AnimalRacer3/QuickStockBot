@@ -79,9 +79,7 @@ def get_float_shares(
             data = resp.json()
             outstanding = data.get("shareOutstanding")
             shares: Optional[int] = (
-                int(float(outstanding) * 1_000_000)
-                if outstanding
-                else None
+                int(float(outstanding) * 1_000_000) if outstanding else None
             )
         else:
             shares = _fetch_finnhub(symbol, key)

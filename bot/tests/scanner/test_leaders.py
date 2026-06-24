@@ -7,7 +7,9 @@ from bot.scanner.models import TickerState
 from bot.ta.models import MacdState
 
 _MACD = MacdState(value=0.1, slope=0.01, hist=0.05, favorability=0.5, eligible=True)
-_MACD_NEG = MacdState(value=-0.1, slope=-0.01, hist=-0.05, favorability=-0.5, eligible=False)
+_MACD_NEG = MacdState(
+    value=-0.1, slope=-0.01, hist=-0.05, favorability=-0.5, eligible=False
+)
 
 
 def _state(
@@ -80,8 +82,22 @@ class TestAssignRoles:
         """When pct_change is equal, higher MACD favorability elects the leader."""
         sig = [1.0, 0.5, 0.2, 0.1, 1.0]
         states = [
-            _state("A", pct_change=10.0, sig=sig, macd=MacdState(value=0.5, slope=0.1, hist=0.1, favorability=0.9, eligible=True)),
-            _state("B", pct_change=10.0, sig=sig, macd=MacdState(value=0.1, slope=0.0, hist=0.0, favorability=0.1, eligible=True)),
+            _state(
+                "A",
+                pct_change=10.0,
+                sig=sig,
+                macd=MacdState(
+                    value=0.5, slope=0.1, hist=0.1, favorability=0.9, eligible=True
+                ),
+            ),
+            _state(
+                "B",
+                pct_change=10.0,
+                sig=sig,
+                macd=MacdState(
+                    value=0.1, slope=0.0, hist=0.0, favorability=0.1, eligible=True
+                ),
+            ),
         ]
         result = assign_roles(states, similarity_threshold=0.7)
         by_sym = {s.symbol: s for s in result}

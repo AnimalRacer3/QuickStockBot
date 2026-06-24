@@ -30,8 +30,8 @@ def _et_offset(dt: datetime) -> timezone:
         first_sunday = first + timedelta(days=days_to_sun)
         return first_sunday + timedelta(weeks=n - 1)
 
-    dst_start = _nth_sunday(3, 2)   # 2nd Sunday March  02:00 ET
-    dst_end = _nth_sunday(11, 1)    # 1st Sunday Nov    02:00 ET
+    dst_start = _nth_sunday(3, 2)  # 2nd Sunday March  02:00 ET
+    dst_end = _nth_sunday(11, 1)  # 1st Sunday Nov    02:00 ET
 
     # Compare on date portion
     d = datetime(dt.year, dt.month, dt.day, tzinfo=timezone.utc)

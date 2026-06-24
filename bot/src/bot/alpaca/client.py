@@ -31,8 +31,8 @@ class CalendarDay:
     __slots__ = ("date", "open", "close")
 
     def __init__(self, date: str, open_: str, close: str) -> None:
-        self.date = date    # "YYYY-MM-DD"
-        self.open = open_   # "HH:MM" Eastern
+        self.date = date  # "YYYY-MM-DD"
+        self.open = open_  # "HH:MM" Eastern
         self.close = close  # "HH:MM" Eastern
 
 

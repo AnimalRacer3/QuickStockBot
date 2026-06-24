@@ -25,7 +25,9 @@ class TestGetScanWindow:
             ),
             calendar=[CalendarDay(date="2024-01-02", open_="09:30", close="16:00")],
         )
-        window = get_scan_window(client, pre_open_lead_hours=1.0, scan_duration_hours=3.0)
+        window = get_scan_window(
+            client, pre_open_lead_hours=1.0, scan_duration_hours=3.0
+        )
         # EST: -5h → 09:30 ET = 14:30 UTC
         expected_open = _utc(2024, 1, 2, 14, 30)
         expected_start = expected_open - timedelta(hours=1)
@@ -35,19 +37,33 @@ class TestGetScanWindow:
     def test_window_duration(self) -> None:
         """window_end = window_start + scan_duration_hours."""
         client = FakeScannerClient(
-            clock=ClockInfo(timestamp="2024-01-02T08:30:00-05:00", is_open=False, next_open="", next_close=""),
+            clock=ClockInfo(
+                timestamp="2024-01-02T08:30:00-05:00",
+                is_open=False,
+                next_open="",
+                next_close="",
+            ),
             calendar=[CalendarDay(date="2024-01-02", open_="09:30", close="16:00")],
         )
-        window = get_scan_window(client, pre_open_lead_hours=1.0, scan_duration_hours=3.0)
+        window = get_scan_window(
+            client, pre_open_lead_hours=1.0, scan_duration_hours=3.0
+        )
         duration = window.window_end - window.window_start
         assert duration == timedelta(hours=3)
 
     def test_custom_lead_hours(self) -> None:
         client = FakeScannerClient(
-            clock=ClockInfo(timestamp="2024-01-02T08:30:00-05:00", is_open=False, next_open="", next_close=""),
+            clock=ClockInfo(
+                timestamp="2024-01-02T08:30:00-05:00",
+                is_open=False,
+                next_open="",
+                next_close="",
+            ),
             calendar=[CalendarDay(date="2024-01-02", open_="09:30", close="16:00")],
         )
-        window = get_scan_window(client, pre_open_lead_hours=2.0, scan_duration_hours=4.0)
+        window = get_scan_window(
+            client, pre_open_lead_hours=2.0, scan_duration_hours=4.0
+        )
         expected_open = _utc(2024, 1, 2, 14, 30)
         assert window.window_start == expected_open - timedelta(hours=2)
         assert window.window_end - window.window_start == timedelta(hours=4)
@@ -55,20 +71,34 @@ class TestGetScanWindow:
     def test_fallback_when_no_calendar(self) -> None:
         """Falls back to 09:30 ET when calendar returns empty list."""
         client = FakeScannerClient(
-            clock=ClockInfo(timestamp="2024-01-02T08:30:00-05:00", is_open=False, next_open="", next_close=""),
+            clock=ClockInfo(
+                timestamp="2024-01-02T08:30:00-05:00",
+                is_open=False,
+                next_open="",
+                next_close="",
+            ),
             calendar=[],
         )
-        window = get_scan_window(client, pre_open_lead_hours=1.0, scan_duration_hours=3.0)
+        window = get_scan_window(
+            client, pre_open_lead_hours=1.0, scan_duration_hours=3.0
+        )
         # Should still produce a valid window
         assert window.window_start < window.session_open < window.window_end
 
     def test_early_close_day(self) -> None:
         """Half-day: session opens at 09:30 and closes at 13:00 (not relevant for window start)."""
         client = FakeScannerClient(
-            clock=ClockInfo(timestamp="2024-11-29T08:30:00-05:00", is_open=False, next_open="", next_close=""),
+            clock=ClockInfo(
+                timestamp="2024-11-29T08:30:00-05:00",
+                is_open=False,
+                next_open="",
+                next_close="",
+            ),
             calendar=[CalendarDay(date="2024-11-29", open_="09:30", close="13:00")],
         )
-        window = get_scan_window(client, pre_open_lead_hours=1.0, scan_duration_hours=3.0)
+        window = get_scan_window(
+            client, pre_open_lead_hours=1.0, scan_duration_hours=3.0
+        )
         # EDT is -4h in summer; Nov 29 is standard time (-5h)
         expected_open = _utc(2024, 11, 29, 14, 30)
         assert window.session_open == expected_open
@@ -76,10 +106,17 @@ class TestGetScanWindow:
     def test_dst_summer_open(self) -> None:
         """EDT (summer): 09:30 ET = 13:30 UTC."""
         client = FakeScannerClient(
-            clock=ClockInfo(timestamp="2024-06-03T08:30:00-04:00", is_open=False, next_open="", next_close=""),
+            clock=ClockInfo(
+                timestamp="2024-06-03T08:30:00-04:00",
+                is_open=False,
+                next_open="",
+                next_close="",
+            ),
             calendar=[CalendarDay(date="2024-06-03", open_="09:30", close="16:00")],
         )
-        window = get_scan_window(client, pre_open_lead_hours=1.0, scan_duration_hours=3.0)
+        window = get_scan_window(
+            client, pre_open_lead_hours=1.0, scan_duration_hours=3.0
+        )
         expected_open = _utc(2024, 6, 3, 13, 30)
         assert window.session_open == expected_open
 
@@ -87,6 +124,7 @@ class TestGetScanWindow:
 class TestIsInWindow:
     def _make_window(self) -> object:
         from bot.scanner.models import ScanWindow
+
         return ScanWindow(
             window_start=_utc(2024, 1, 2, 13, 30),
             window_end=_utc(2024, 1, 2, 16, 30),

@@ -21,6 +21,7 @@ from tests.scanner.conftest import (
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _utc(*args: int) -> datetime:
     return datetime(*args, tzinfo=timezone.utc)
 
@@ -57,8 +58,18 @@ def _ta() -> TAConfig:
 
 def _prev_bars(symbol: str, close: float) -> list:
     from tests.scanner.conftest import make_bar
-    return [make_bar(close, close, close, close, volume=500_000, symbol=symbol,
-                     ts=_utc(2024, 1, 1, 20, 0))]
+
+    return [
+        make_bar(
+            close,
+            close,
+            close,
+            close,
+            volume=500_000,
+            symbol=symbol,
+            ts=_utc(2024, 1, 1, 20, 0),
+        )
+    ]
 
 
 # Intraday bars for symbol with a 10% gap (price=5.5, prev_close implied 5.0)
@@ -69,6 +80,7 @@ def _gap_bars(symbol: str, price: float = 5.5, n: int = 40) -> list:
 # ---------------------------------------------------------------------------
 # scan_candidates tests
 # ---------------------------------------------------------------------------
+
 
 class TestScanCandidates:
     def test_symbol_passing_all_filters(self) -> None:
@@ -220,6 +232,7 @@ class TestScanCandidates:
 # Unknown-float visibility tests
 # ---------------------------------------------------------------------------
 
+
 class TestUnknownFloatHandling:
     def _run(self, include_unknown: bool) -> list:
         bars = _gap_bars("UNKN")
@@ -242,7 +255,9 @@ class TestUnknownFloatHandling:
     def test_unknown_float_always_visible(self) -> None:
         for include in (True, False):
             result = self._run(include)
-            assert len(result) == 1, f"include={include}: unknown-float should always be visible"
+            assert len(result) == 1, (
+                f"include={include}: unknown-float should always be visible"
+            )
             assert result[0].unknown_float is True
 
     def test_unknown_float_tradable_when_include_true(self) -> None:
@@ -257,6 +272,7 @@ class TestUnknownFloatHandling:
 # ---------------------------------------------------------------------------
 # Prior-profit bias tests
 # ---------------------------------------------------------------------------
+
 
 class TestPriorProfitBias:
     def _score(self, prior_pnl: Optional[float]) -> float:
@@ -304,16 +320,30 @@ class TestPriorProfitBias:
 # build_active_set tests
 # ---------------------------------------------------------------------------
 
+
 class TestBuildActiveSet:
     def _state(self, symbol: str, pct: float, tradable: bool = True):
         from bot.scanner.models import TickerState
         from bot.ta.models import MacdState
+
         return TickerState(
-            symbol=symbol, price=5.0, prev_close=4.0, gap_pct=pct,
-            pct_change=pct, rvol=3.0, float_shares=10_000_000, unknown_float=False,
-            tradable=tradable, has_news=True,
-            macd_state=MacdState(value=0.1, slope=0.01, hist=0.05, favorability=0.5, eligible=True),
-            pattern_tags=[], pattern_signature=[], role="standalone", score=70.0,
+            symbol=symbol,
+            price=5.0,
+            prev_close=4.0,
+            gap_pct=pct,
+            pct_change=pct,
+            rvol=3.0,
+            float_shares=10_000_000,
+            unknown_float=False,
+            tradable=tradable,
+            has_news=True,
+            macd_state=MacdState(
+                value=0.1, slope=0.01, hist=0.05, favorability=0.5, eligible=True
+            ),
+            pattern_tags=[],
+            pattern_signature=[],
+            role="standalone",
+            score=70.0,
         )
 
     def test_top_n_by_pct_change(self) -> None:
@@ -350,7 +380,9 @@ class TestBuildActiveSet:
             self._state("C", 10.0),
         ]
         # Only B and C appear in movers
-        active = build_active_set(candidates, _cfg(active_tickers_n=2), movers=["B", "C"])
+        active = build_active_set(
+            candidates, _cfg(active_tickers_n=2), movers=["B", "C"]
+        )
         assert "A" not in active
         assert "B" in active
 
@@ -364,11 +396,14 @@ class TestBuildActiveSet:
 # Window anchoring: no scan outside window
 # ---------------------------------------------------------------------------
 
+
 class TestRunScanWindowGating:
     def test_outside_window_returns_none(self) -> None:
         clock = ClockInfo(
             timestamp="2024-01-02T08:30:00-05:00",
-            is_open=False, next_open="", next_close="",
+            is_open=False,
+            next_open="",
+            next_close="",
         )
         calendar = [CalendarDay(date="2024-01-02", open_="09:30", close="16:00")]
         client = FakeScannerClient(clock=clock, calendar=calendar)
@@ -389,7 +424,9 @@ class TestRunScanWindowGating:
         prev = _prev_bars("MOMO", 4.0)
         clock = ClockInfo(
             timestamp="2024-01-02T08:30:00-05:00",
-            is_open=False, next_open="", next_close="",
+            is_open=False,
+            next_open="",
+            next_close="",
         )
         calendar = [CalendarDay(date="2024-01-02", open_="09:30", close="16:00")]
         client = FakeScannerClient(

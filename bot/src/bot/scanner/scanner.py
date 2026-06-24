@@ -229,7 +229,9 @@ def _get_prev_close(symbol: str, client: MarketClient, window: ScanWindow) -> fl
 
     end = window.window_start
     start = end - timedelta(days=5)  # go back a few days to cover weekends/holidays
-    bars = client.get_bars(symbol=symbol, start=start, end=end, timeframe="1Day", limit=5)
+    bars = client.get_bars(
+        symbol=symbol, start=start, end=end, timeframe="1Day", limit=5
+    )
     if bars:
         return float(bars[-1].close)
     return 0.0
@@ -326,7 +328,9 @@ def run_scan(
     )
 
     if not is_in_window(now, window):
-        logger.info("Outside scan window (%s – %s)", window.window_start, window.window_end)
+        logger.info(
+            "Outside scan window (%s – %s)", window.window_start, window.window_end
+        )
         return None
 
     candidates = scan_candidates(

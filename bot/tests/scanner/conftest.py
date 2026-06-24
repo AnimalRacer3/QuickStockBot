@@ -28,6 +28,7 @@ from bot.news.models import (
 # Bar factory
 # ---------------------------------------------------------------------------
 
+
 def make_bar(
     open_: float,
     high: float,
@@ -61,7 +62,8 @@ def make_bars(n: int = 40, base_price: float = 5.0, symbol: str = "TEST") -> lis
                 close=p + 0.05,
                 volume=500_000,
                 symbol=symbol,
-                ts=datetime(2024, 1, 2, 9, 30, tzinfo=timezone.utc) + timedelta(minutes=i),
+                ts=datetime(2024, 1, 2, 9, 30, tzinfo=timezone.utc)
+                + timedelta(minutes=i),
             )
         )
     return bars
@@ -70,6 +72,7 @@ def make_bars(n: int = 40, base_price: float = 5.0, symbol: str = "TEST") -> lis
 # ---------------------------------------------------------------------------
 # Sentiment helpers
 # ---------------------------------------------------------------------------
+
 
 def make_positive_sentiment(symbol: str = "TEST") -> TickerSentiment:
     art = ArticleWithSentiment(
@@ -81,12 +84,16 @@ def make_positive_sentiment(symbol: str = "TEST") -> TickerSentiment:
             url="http://example.com",
             published_at=datetime(2024, 1, 2, 8, 0, tzinfo=timezone.utc),
         ),
-        sentiment=SentimentScore(positive=0.9, negative=0.05, neutral=0.05, score=0.85, label="positive"),
+        sentiment=SentimentScore(
+            positive=0.9, negative=0.05, neutral=0.05, score=0.85, label="positive"
+        ),
     )
     return TickerSentiment(
         symbol=symbol,
         articles=[art],
-        aggregate=SentimentScore(positive=0.9, negative=0.05, neutral=0.05, score=0.85, label="positive"),
+        aggregate=SentimentScore(
+            positive=0.9, negative=0.05, neutral=0.05, score=0.85, label="positive"
+        ),
     )
 
 
@@ -94,7 +101,9 @@ def make_neutral_sentiment(symbol: str = "TEST") -> TickerSentiment:
     return TickerSentiment(
         symbol=symbol,
         articles=[],
-        aggregate=SentimentScore(positive=0.0, negative=0.0, neutral=1.0, score=0.0, label="neutral"),
+        aggregate=SentimentScore(
+            positive=0.0, negative=0.0, neutral=1.0, score=0.0, label="neutral"
+        ),
     )
 
 
@@ -161,7 +170,15 @@ class FakeScannerClient(MarketClient):
     def get_news(self, symbols: list[str], limit: int = 10) -> list[NewsItem]:
         return []
 
-    def submit_order(self, symbol, qty, side, order_type, time_in_force=TimeInForce.DAY, limit_price=None) -> Order:
+    def submit_order(
+        self,
+        symbol,
+        qty,
+        side,
+        order_type,
+        time_in_force=TimeInForce.DAY,
+        limit_price=None,
+    ) -> Order:
         raise NotImplementedError
 
     def get_order(self, order_id: str) -> Order:

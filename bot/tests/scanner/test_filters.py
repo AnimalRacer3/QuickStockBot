@@ -16,6 +16,7 @@ from bot.scanner.filters import (
 # Price filter
 # ---------------------------------------------------------------------------
 
+
 class TestPriceFilter:
     def test_within_range(self) -> None:
         assert passes_price_filter(5.0, 1.0, 20.0) is True
@@ -39,6 +40,7 @@ class TestPriceFilter:
 # ---------------------------------------------------------------------------
 # Gap-up filter
 # ---------------------------------------------------------------------------
+
 
 class TestGapUpFilter:
     def test_exactly_at_threshold(self) -> None:
@@ -69,6 +71,7 @@ class TestGapUpFilter:
 # ---------------------------------------------------------------------------
 # RVOL filter
 # ---------------------------------------------------------------------------
+
 
 class TestRvolFilter:
     def test_high_rvol_passes(self) -> None:
@@ -106,6 +109,7 @@ class TestRvolFilter:
 # Float filter
 # ---------------------------------------------------------------------------
 
+
 class TestFloatFilter:
     def test_small_float_passes(self) -> None:
         assert passes_float_filter(10_000_000, False, 20_000_000) is True
@@ -127,6 +131,7 @@ class TestFloatFilter:
 # ---------------------------------------------------------------------------
 # News filter
 # ---------------------------------------------------------------------------
+
 
 class TestNewsFilter:
     def test_has_news_and_required(self) -> None:
