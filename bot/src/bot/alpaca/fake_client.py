@@ -5,7 +5,8 @@ from decimal import Decimal
 from typing import Optional
 from uuid import uuid4
 
-from shared.models import (
+from bot.alpaca.client import MarketClient
+from bot.models import (
     AccountSnapshot,
     Asset,
     Bar,
@@ -19,40 +20,19 @@ from shared.models import (
     TimeInForce,
 )
 
-from .client import MarketClient
-
 _NOW = datetime(2024, 1, 15, 14, 30, 0, tzinfo=timezone.utc)
 
 
 class FakeMarketClient(MarketClient):
     """Deterministic in-memory client for unit tests.
 
-    Callers may override `orders`, `positions`, `account`, etc. to control
-    fixture data, or use the default fixtures which cover the happy path.
+    Callers may adjust ``_order_terminal_status`` to simulate different
+    terminal states; all other fixture data is hardcoded.
     """
 
     def __init__(self) -> None:
         self._submitted_orders: list[Order] = []
         self._order_terminal_status: OrderStatus = OrderStatus.FILLED
-
-    # ------------------------------------------------------------------
-    # Fixture data
-    # ------------------------------------------------------------------
-
-    def _make_bar(self, symbol: str, i: int, timeframe: str) -> Bar:
-        base = Decimal("100")
-        return Bar(
-            symbol=symbol,
-            timestamp=_NOW,
-            open=base + i,
-            high=base + i + Decimal("2"),
-            low=base + i - Decimal("1"),
-            close=base + i + Decimal("1"),
-            volume=10_000 + i * 100,
-            vwap=base + i + Decimal("0.5"),
-            trade_count=500 + i,
-            timeframe=timeframe,
-        )
 
     # ------------------------------------------------------------------
     # MarketClient implementation
@@ -66,7 +46,22 @@ class FakeMarketClient(MarketClient):
         timeframe: str = "1Min",
         limit: int = 1000,
     ) -> list[Bar]:
-        return [self._make_bar(symbol, i, timeframe) for i in range(3)]
+        base = Decimal("100")
+        return [
+            Bar(
+                symbol=symbol,
+                timestamp=_NOW,
+                open=base + i,
+                high=base + i + Decimal("2"),
+                low=base + i - Decimal("1"),
+                close=base + i + Decimal("1"),
+                volume=10_000 + i * 100,
+                vwap=base + i + Decimal("0.5"),
+                trade_count=500 + i,
+                timeframe=timeframe,
+            )
+            for i in range(3)
+        ]
 
     def get_latest_quote(self, symbol: str) -> Quote:
         return Quote(
@@ -152,7 +147,6 @@ class FakeMarketClient(MarketClient):
     def get_order(self, order_id: str) -> Order:
         for o in self._submitted_orders:
             if o.id == order_id:
-                # Return filled version so poll_order terminates in tests
                 return o.model_copy(
                     update={
                         "status": self._order_terminal_status,
@@ -169,7 +163,6 @@ class FakeMarketClient(MarketClient):
         timeout_seconds: float = 60.0,
         poll_interval: float = 1.0,
     ) -> Order:
-        # Immediately returns the terminal order — no sleeping in tests
         return self.get_order(order_id)
 
     def list_positions(self) -> list[Position]:

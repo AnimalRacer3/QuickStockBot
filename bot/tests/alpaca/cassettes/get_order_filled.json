@@ -7,7 +7,6 @@
   "filled_at": "2024-01-15T14:30:05Z",
   "expired_at": null,
   "canceled_at": null,
-  "failed_at": null,
   "asset_id": "b0b6dd9d-8b9b-48a9-ba46-b9d54afdffd8",
   "symbol": "AAPL",
   "asset_class": "us_equity",

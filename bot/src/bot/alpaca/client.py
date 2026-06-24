@@ -9,7 +9,8 @@ from typing import Optional
 import httpx
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
-from shared.models import (
+from bot.alpaca.config import AlpacaConfig
+from bot.models import (
     AccountSnapshot,
     Asset,
     Bar,
@@ -22,8 +23,6 @@ from shared.models import (
     Quote,
     TimeInForce,
 )
-
-from .config import AlpacaConfig
 
 
 class MarketClient(ABC):
@@ -93,7 +92,9 @@ def _is_transient(exc: BaseException) -> bool:
 
 
 class AlpacaClient(MarketClient):
-    def __init__(self, config: AlpacaConfig, http_client: Optional[httpx.Client] = None) -> None:
+    def __init__(
+        self, config: AlpacaConfig, http_client: Optional[httpx.Client] = None
+    ) -> None:
         self._cfg = config
         self._http = http_client or httpx.Client(
             headers={
@@ -107,13 +108,13 @@ class AlpacaClient(MarketClient):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _broker_get(self, path: str, **params: object) -> dict:
+    def _broker_get(self, path: str, **params: object) -> dict:  # type: ignore[type-arg]
         return self._get(self._cfg.base_url, path, **params)
 
-    def _broker_post(self, path: str, body: dict) -> dict:
+    def _broker_post(self, path: str, body: dict) -> dict:  # type: ignore[type-arg]
         return self._post(self._cfg.base_url, path, body)
 
-    def _data_get(self, path: str, **params: object) -> dict:
+    def _data_get(self, path: str, **params: object) -> dict:  # type: ignore[type-arg]
         return self._get(self._cfg.data_url, path, **params)
 
     @retry(
@@ -122,9 +123,9 @@ class AlpacaClient(MarketClient):
         stop=stop_after_attempt(4),
         reraise=True,
     )
-    def _get(self, base: str, path: str, **params: object) -> dict:
+    def _get(self, base: str, path: str, **params: object) -> dict:  # type: ignore[type-arg]
         clean_params = {k: v for k, v in params.items() if v is not None}
-        resp = self._http.get(f"{base}{path}", params=clean_params)
+        resp = self._http.get(f"{base}{path}", params=clean_params)  # type: ignore[arg-type]
         resp.raise_for_status()
         return resp.json()
 
@@ -134,7 +135,7 @@ class AlpacaClient(MarketClient):
         stop=stop_after_attempt(4),
         reraise=True,
     )
-    def _post(self, base: str, path: str, body: dict) -> dict:
+    def _post(self, base: str, path: str, body: dict) -> dict:  # type: ignore[type-arg]
         resp = self._http.post(f"{base}{path}", json=body)
         resp.raise_for_status()
         return resp.json()
@@ -144,7 +145,7 @@ class AlpacaClient(MarketClient):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _map_bar(symbol: str, raw: dict, timeframe: str) -> Bar:
+    def _map_bar(symbol: str, raw: dict, timeframe: str) -> Bar:  # type: ignore[type-arg]
         return Bar(
             symbol=symbol,
             timestamp=raw["t"],
@@ -159,7 +160,7 @@ class AlpacaClient(MarketClient):
         )
 
     @staticmethod
-    def _map_quote(symbol: str, raw: dict) -> Quote:
+    def _map_quote(symbol: str, raw: dict) -> Quote:  # type: ignore[type-arg]
         return Quote(
             symbol=symbol,
             timestamp=raw["t"],
@@ -170,7 +171,7 @@ class AlpacaClient(MarketClient):
         )
 
     @staticmethod
-    def _map_asset(raw: dict) -> Asset:
+    def _map_asset(raw: dict) -> Asset:  # type: ignore[type-arg]
         return Asset(
             id=raw["id"],
             symbol=raw["symbol"],
@@ -185,7 +186,7 @@ class AlpacaClient(MarketClient):
         )
 
     @staticmethod
-    def _map_news(raw: dict) -> NewsItem:
+    def _map_news(raw: dict) -> NewsItem:  # type: ignore[type-arg]
         return NewsItem(
             id=int(raw["id"]),
             headline=raw["headline"],
@@ -199,7 +200,7 @@ class AlpacaClient(MarketClient):
         )
 
     @staticmethod
-    def _map_order(raw: dict) -> Order:
+    def _map_order(raw: dict) -> Order:  # type: ignore[type-arg]
         return Order(
             id=raw["id"],
             client_order_id=raw["client_order_id"],
@@ -208,7 +209,9 @@ class AlpacaClient(MarketClient):
             order_type=OrderType(raw["type"]),
             qty=Decimal(str(raw["qty"])),
             filled_qty=Decimal(str(raw.get("filled_qty") or "0")),
-            limit_price=Decimal(str(raw["limit_price"])) if raw.get("limit_price") else None,
+            limit_price=Decimal(str(raw["limit_price"]))
+            if raw.get("limit_price")
+            else None,
             status=OrderStatus(raw["status"]),
             time_in_force=TimeInForce(raw["time_in_force"]),
             submitted_at=raw["submitted_at"],
@@ -216,12 +219,14 @@ class AlpacaClient(MarketClient):
             canceled_at=raw.get("canceled_at"),
             expired_at=raw.get("expired_at"),
             filled_avg_price=(
-                Decimal(str(raw["filled_avg_price"])) if raw.get("filled_avg_price") else None
+                Decimal(str(raw["filled_avg_price"]))
+                if raw.get("filled_avg_price")
+                else None
             ),
         )
 
     @staticmethod
-    def _map_position(raw: dict) -> Position:
+    def _map_position(raw: dict) -> Position:  # type: ignore[type-arg]
         return Position(
             symbol=raw["symbol"],
             qty=Decimal(str(raw["qty"])),
@@ -234,7 +239,7 @@ class AlpacaClient(MarketClient):
         )
 
     @staticmethod
-    def _map_account(raw: dict) -> AccountSnapshot:
+    def _map_account(raw: dict) -> AccountSnapshot:  # type: ignore[type-arg]
         equity = Decimal(str(raw["equity"]))
         is_pdt = bool(raw.get("pattern_day_trader", False))
         pdt_restricted = is_pdt and equity < Decimal("25000")
@@ -245,7 +250,9 @@ class AlpacaClient(MarketClient):
             portfolio_value=Decimal(str(raw["portfolio_value"])),
             pattern_day_trader=is_pdt,
             day_trade_count=int(raw.get("daytrade_count", 0)),
-            day_trading_buying_power=Decimal(str(raw.get("daytrading_buying_power", "0"))),
+            day_trading_buying_power=Decimal(
+                str(raw.get("daytrading_buying_power", "0"))
+            ),
             is_pdt_restricted=pdt_restricted,
         )
 
@@ -276,8 +283,7 @@ class AlpacaClient(MarketClient):
         return self._map_quote(symbol, data["quote"])
 
     def get_latest_price(self, symbol: str) -> Decimal:
-        quote = self.get_latest_quote(symbol)
-        return quote.mid_price
+        return self.get_latest_quote(symbol).mid_price
 
     def list_assets(self) -> list[Asset]:
         data = self._broker_get(
@@ -304,7 +310,7 @@ class AlpacaClient(MarketClient):
         time_in_force: TimeInForce = TimeInForce.DAY,
         limit_price: Optional[Decimal] = None,
     ) -> Order:
-        body: dict = {
+        body: dict = {  # type: ignore[type-arg]
             "symbol": symbol,
             "qty": str(qty),
             "side": side.value,
@@ -338,8 +344,8 @@ class AlpacaClient(MarketClient):
                 return order
             if time.monotonic() >= deadline:
                 raise TimeoutError(
-                    f"Order {order_id} did not reach terminal status within {timeout_seconds}s; "
-                    f"last status: {order.status}"
+                    f"Order {order_id} did not reach terminal status within "
+                    f"{timeout_seconds}s; last status: {order.status}"
                 )
             time.sleep(poll_interval)
 

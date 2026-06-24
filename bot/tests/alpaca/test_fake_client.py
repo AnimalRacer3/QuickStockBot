@@ -1,12 +1,14 @@
-"""Tests for FakeMarketClient — verifies all interface methods work deterministically."""
+"""Tests for FakeMarketClient — all methods return deterministic fixtures."""
+
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
 
 from bot.alpaca.fake_client import FakeMarketClient
-from shared.models import (
+from bot.models import (
     AccountSnapshot,
     Asset,
     Bar,
@@ -17,8 +19,10 @@ from shared.models import (
     OrderType,
     Position,
     Quote,
-    TimeInForce,
 )
+
+_START = datetime(2024, 1, 15, 14, 30, tzinfo=timezone.utc)
+_END = datetime(2024, 1, 15, 15, 30, tzinfo=timezone.utc)
 
 
 @pytest.fixture()
@@ -28,20 +32,14 @@ def client() -> FakeMarketClient:
 
 class TestFakeBars:
     def test_returns_bars(self, client: FakeMarketClient) -> None:
-        from datetime import datetime, timezone
-        start = datetime(2024, 1, 15, 14, 30, tzinfo=timezone.utc)
-        end = datetime(2024, 1, 15, 15, 30, tzinfo=timezone.utc)
-        bars = client.get_bars("AAPL", start, end)
+        bars = client.get_bars("AAPL", _START, _END)
         assert len(bars) == 3
         assert all(isinstance(b, Bar) for b in bars)
         assert all(b.symbol == "AAPL" for b in bars)
 
     def test_bars_are_deterministic(self, client: FakeMarketClient) -> None:
-        from datetime import datetime, timezone
-        start = datetime(2024, 1, 15, 14, 30, tzinfo=timezone.utc)
-        end = datetime(2024, 1, 15, 15, 30, tzinfo=timezone.utc)
-        bars1 = client.get_bars("AAPL", start, end)
-        bars2 = client.get_bars("AAPL", start, end)
+        bars1 = client.get_bars("AAPL", _START, _END)
+        bars2 = client.get_bars("AAPL", _START, _END)
         assert [b.close for b in bars1] == [b.close for b in bars2]
 
 
@@ -63,12 +61,10 @@ class TestFakeAssets:
         assets = client.list_assets()
         assert len(assets) >= 1
         assert all(isinstance(a, Asset) for a in assets)
-        symbols = [a.symbol for a in assets]
-        assert "AAPL" in symbols
+        assert "AAPL" in [a.symbol for a in assets]
 
     def test_assets_are_tradable(self, client: FakeMarketClient) -> None:
-        for asset in client.list_assets():
-            assert asset.tradable is True
+        assert all(a.tradable for a in client.list_assets())
 
 
 class TestFakeNews:
@@ -79,13 +75,14 @@ class TestFakeNews:
 
     def test_symbol_in_news(self, client: FakeMarketClient) -> None:
         news = client.get_news(["TSLA"])
-        # FakeClient uses provided symbols
         assert any("TSLA" in n.symbols for n in news)
 
 
 class TestFakeOrders:
     def test_submit_market_buy(self, client: FakeMarketClient) -> None:
-        order = client.submit_order("AAPL", Decimal("1"), OrderSide.BUY, OrderType.MARKET)
+        order = client.submit_order(
+            "AAPL", Decimal("1"), OrderSide.BUY, OrderType.MARKET
+        )
         assert isinstance(order, Order)
         assert order.status == OrderStatus.NEW
         assert order.symbol == "AAPL"
@@ -105,7 +102,9 @@ class TestFakeOrders:
         assert order.side == OrderSide.SELL
 
     def test_get_order_returns_filled(self, client: FakeMarketClient) -> None:
-        order = client.submit_order("AAPL", Decimal("1"), OrderSide.BUY, OrderType.MARKET)
+        order = client.submit_order(
+            "AAPL", Decimal("1"), OrderSide.BUY, OrderType.MARKET
+        )
         fetched = client.get_order(order.id)
         assert fetched.status == OrderStatus.FILLED
         assert fetched.filled_qty == Decimal("1")
@@ -116,7 +115,9 @@ class TestFakeOrders:
             client.get_order("nonexistent-id")
 
     def test_poll_order_returns_immediately(self, client: FakeMarketClient) -> None:
-        order = client.submit_order("AAPL", Decimal("2"), OrderSide.BUY, OrderType.MARKET)
+        order = client.submit_order(
+            "AAPL", Decimal("2"), OrderSide.BUY, OrderType.MARKET
+        )
         result = client.poll_order(order.id, timeout_seconds=0.001)
         assert result.status == OrderStatus.FILLED
 
