@@ -1,0 +1,16 @@
+{
+  "news": [
+    {
+      "id": 31547580,
+      "author": "Benzinga Newsdesk",
+      "created_at": "2024-01-15T13:00:00Z",
+      "updated_at": "2024-01-15T13:00:00Z",
+      "headline": "Apple Supplier Reports Strong Orders",
+      "summary": "A key Apple supplier indicated robust order volumes for Q1.",
+      "url": "https://www.benzinga.com/news/24/01/31547580",
+      "images": [],
+      "symbols": ["AAPL"],
+      "source": "benzinga"
+    }
+  ]
+}
