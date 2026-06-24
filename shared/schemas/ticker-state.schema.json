@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://quickstockbot.dev/schemas/ticker-state.json",
+  "title": "TickerState",
+  "description": "Snapshot of a watched ticker at a point in time.",
+  "type": "object",
+  "required": [
+    "symbol",
+    "last_price",
+    "high_of_day",
+    "low_of_day",
+    "macd_line",
+    "macd_signal",
+    "macd_hist",
+    "pattern_tags",
+    "score",
+    "updated_at"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "symbol": {
+      "type": "string",
+      "description": "Ticker symbol, e.g. AAPL."
+    },
+    "last_price": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Most recent trade price in USD."
+    },
+    "high_of_day": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Intraday high in USD."
+    },
+    "low_of_day": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Intraday low in USD."
+    },
+    "macd_line": {
+      "type": "number",
+      "description": "MACD line value (fast EMA − slow EMA)."
+    },
+    "macd_signal": {
+      "type": "number",
+      "description": "Signal line value (EMA of MACD line)."
+    },
+    "macd_hist": {
+      "type": "number",
+      "description": "MACD histogram (macd_line − macd_signal)."
+    },
+    "pattern_tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Detected chart patterns, e.g. [\"bull_flag\", \"volume_surge\"]."
+    },
+    "score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Composite signal score 0–100."
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp of this snapshot."
+    }
+  }
+}
