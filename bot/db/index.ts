@@ -8,3 +8,5 @@ export { TradeRepository } from './repositories/tradeRepository';
 export { LogRepository } from './repositories/logRepository';
 export { ListRepository } from './repositories/listRepository';
 export { MlSampleRepository } from './repositories/mlSampleRepository';
+export { TickerProfitStatsRepository } from './repositories/tickerProfitStatsRepository';
+export { DailyEfficiencyRepository } from './repositories/dailyEfficiencyRepository';

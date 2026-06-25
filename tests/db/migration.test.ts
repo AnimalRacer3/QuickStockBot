@@ -29,6 +29,8 @@ describe('Migration runner', () => {
         'log_events',
         'lists',
         'ml_samples',
+        'ticker_profit_stats',
+        'daily_efficiency',
       ]),
     );
     db.close();
@@ -67,13 +69,16 @@ describe('Migration runner', () => {
   it('is idempotent — running twice does not duplicate records', () => {
     const db = freshDb();
     runMigrations(db);
-    runMigrations(db);
-
-    const count = (
+    const countAfterFirst = (
       db.prepare('SELECT COUNT(*) as c FROM migrations').get() as { c: number }
     ).c;
 
-    expect(count).toBe(1);
+    runMigrations(db);
+    const countAfterSecond = (
+      db.prepare('SELECT COUNT(*) as c FROM migrations').get() as { c: number }
+    ).c;
+
+    expect(countAfterSecond).toBe(countAfterFirst);
     db.close();
   });
 
