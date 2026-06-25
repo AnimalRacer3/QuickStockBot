@@ -9,7 +9,7 @@
  * Requires a running Next.js server (configured via playwright.config.ts).
  */
 import { test, expect } from "@playwright/test";
-import { SESSION_COOKIE, signSession } from "../../src/lib/auth";
+import { SESSION_COOKIE, signSession } from "../../src/lib/session";
 
 // ─── Route protection ─────────────────────────────────────────────────────────
 
