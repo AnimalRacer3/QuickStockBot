@@ -32,13 +32,12 @@ export function DisclaimerBanner() {
       }}
     >
       <span>
-        <strong style={{ color: "#f59e0b" }}>Not financial advice.</strong>{" "}
-        QuickStockBot automates order submission based on technical signals. It
-        does not provide investment advice. Past performance does not guarantee
-        future results.{" "}
+        <strong style={{ color: "#f59e0b" }}>Not financial advice.</strong> QuickStockBot automates
+        order submission based on technical signals. It does not provide investment advice. Past
+        performance does not guarantee future results.{" "}
         <span style={{ color: "#6b7280" }}>
-          Margin/PDT: post-June 4 2026 rules apply — $2 k margin minimum,
-          intraday-margin-based buying power; bot defers to Alpaca.
+          Margin/PDT: post-June 4 2026 rules apply — $2 k margin minimum, intraday-margin-based
+          buying power; bot defers to Alpaca.
         </span>
       </span>
       <button

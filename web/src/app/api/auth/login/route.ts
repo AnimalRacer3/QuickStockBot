@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyPassword, signSession, SESSION_COOKIE, SESSION_TTL_SECONDS, getClientIp } from "@/lib/auth";
+import {
+  verifyPassword,
+  signSession,
+  SESSION_COOKIE,
+  SESSION_TTL_SECONDS,
+  getClientIp,
+} from "@/lib/auth";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {

@@ -8,11 +8,7 @@ const buckets = new Map<string, { tokens: number; last: number }>();
  * @param maxTokens Max burst size
  * @param refillPerSec Tokens refilled per second
  */
-export function checkRateLimit(
-  key: string,
-  maxTokens = 10,
-  refillPerSec = 10 / 60
-): boolean {
+export function checkRateLimit(key: string, maxTokens = 10, refillPerSec = 10 / 60): boolean {
   const now = Date.now();
   let b = buckets.get(key);
   if (!b) {
