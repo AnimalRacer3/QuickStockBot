@@ -34,12 +34,18 @@ describe('SettingsRepository', () => {
     db.close();
   });
 
-  it('getAll returns every setting ordered by key', () => {
+  it('getAll returns settings in ascending key order', () => {
     const { db, repo } = setup();
-    repo.set('beta', 'b');
-    repo.set('alpha', 'a');
+    repo.set('zzz_last', 'z');
+    repo.set('aaa_first', 'a');
     const all = repo.getAll();
-    expect(all.map((s) => s.key)).toEqual(['alpha', 'beta']);
+    // Both newly added keys must be present and in sorted order
+    const keys = all.map((s) => s.key);
+    const firstIdx = keys.indexOf('aaa_first');
+    const lastIdx = keys.indexOf('zzz_last');
+    expect(firstIdx).toBeGreaterThanOrEqual(0);
+    expect(lastIdx).toBeGreaterThanOrEqual(0);
+    expect(firstIdx).toBeLessThan(lastIdx);
     db.close();
   });
 
@@ -62,11 +68,14 @@ describe('SettingsRepository', () => {
     db.close();
   });
 
-  it('seedDefaults inserts all DEFAULT_SETTINGS', () => {
+  it('seedDefaults inserts all DEFAULT_SETTINGS keys', () => {
     const { db, repo } = setup();
     seedDefaults(db);
-    const all = repo.getAll();
-    expect(all.length).toBe(Object.keys(DEFAULT_SETTINGS).length);
+    // All DEFAULT_SETTINGS keys must be retrievable (not just counted, since
+    // migrations also seed additional settings beyond DEFAULT_SETTINGS)
+    for (const key of Object.keys(DEFAULT_SETTINGS)) {
+      expect(repo.get(key)).not.toBeNull();
+    }
     expect(repo.get('max_position_size')!.value).toBe(DEFAULT_SETTINGS['max_position_size']);
     expect(repo.get('paper_trading')!.value).toBe('true');
     db.close();
@@ -83,8 +92,9 @@ describe('SettingsRepository', () => {
   it('seedDefaults is idempotent', () => {
     const { db, repo } = setup();
     seedDefaults(db);
+    const countAfterFirst = repo.getAll().length;
     seedDefaults(db);
-    expect(repo.getAll().length).toBe(Object.keys(DEFAULT_SETTINGS).length);
+    expect(repo.getAll().length).toBe(countAfterFirst);
     db.close();
   });
 });
