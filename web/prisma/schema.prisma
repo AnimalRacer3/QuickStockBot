@@ -17,6 +17,12 @@ model User {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
+  stripeCustomerId   String?  @unique
+  subscriptionId     String?
+  subscriptionStatus String?
+  trialEnd           DateTime?
+  currentPeriodEnd   DateTime?
+
   sessions    Session[]
   trialRecord TrialRecord?
 
