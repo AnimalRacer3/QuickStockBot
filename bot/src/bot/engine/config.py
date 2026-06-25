@@ -12,11 +12,13 @@ class ExecutionConfig:
     # Risk / sizing
     stop_loss_pct: float = 1.0
     take_profit_pct: float = 3.0
-    daily_max_loss_pct: float = -2.0       # negative
-    daily_profit_target_pct: float = 3.0   # positive
-    position_size_pct: float = 25.0        # max position as % of buying power
-    override_risk_per_trade: bool = False   # if True, use risk_per_trade_pct (must be < |daily_max_loss_pct|)
-    risk_per_trade_pct: float = 1.0        # only effective when override_risk_per_trade=True
+    daily_max_loss_pct: float = -2.0  # negative
+    daily_profit_target_pct: float = 3.0  # positive
+    position_size_pct: float = 25.0  # max position as % of buying power
+    override_risk_per_trade: bool = (
+        False  # if True, use risk_per_trade_pct (must be < |daily_max_loss_pct|)
+    )
+    risk_per_trade_pct: float = 1.0  # only effective when override_risk_per_trade=True
 
     # Circuit breakers
     flatten_on_max_loss: bool = True
@@ -64,6 +66,7 @@ class ExecutionConfig:
     def goalpost_trade_count(self) -> int:
         """Goal-post number of trades needed to hit daily max loss at effective sizing."""
         import math
+
         eff = self.effective_risk_pct()
         if eff <= 0:
             return 1

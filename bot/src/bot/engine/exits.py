@@ -28,7 +28,9 @@ class ExitSignal:
     is_final: bool  # True when position fully closed
 
 
-def _is_bullish_state(macd: MacdState, pattern_tags: list[str], bullish_tags: set[str]) -> bool:
+def _is_bullish_state(
+    macd: MacdState, pattern_tags: list[str], bullish_tags: set[str]
+) -> bool:
     """Return True when momentum stays bullish: MACD eligible + bullish pattern, no reversal."""
     from bot.engine.gate import _BEARISH_TAGS
 
@@ -37,7 +39,9 @@ def _is_bullish_state(macd: MacdState, pattern_tags: list[str], bullish_tags: se
     return macd.eligible and has_bullish and not has_reversal
 
 
-def check_take_profit(position: OpenPosition, current_price: float, take_profit_pct: float) -> bool:
+def check_take_profit(
+    position: OpenPosition, current_price: float, take_profit_pct: float
+) -> bool:
     """Return True when price has reached the take-profit level."""
     target = position.entry_price * (1.0 + take_profit_pct / 100.0)
     return current_price >= target

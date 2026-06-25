@@ -250,8 +250,14 @@ def make_flat_bars(
 ) -> list[Bar]:
     """Flat/sideways bars."""
     return [
-        make_bar(price, price + 0.1, price - 0.1, price, symbol=symbol,
-                 ts=_SESSION_OPEN + timedelta(minutes=i))
+        make_bar(
+            price,
+            price + 0.1,
+            price - 0.1,
+            price,
+            symbol=symbol,
+            ts=_SESSION_OPEN + timedelta(minutes=i),
+        )
         for i in range(n)
     ]
 
@@ -277,8 +283,14 @@ def make_accelerating_bars(
         high = price + step
         low = price - 0.05
         bars.append(
-            make_bar(open_, high, low, close, symbol=symbol,
-                     ts=_SESSION_OPEN + timedelta(minutes=i))
+            make_bar(
+                open_,
+                high,
+                low,
+                close,
+                symbol=symbol,
+                ts=_SESSION_OPEN + timedelta(minutes=i),
+            )
         )
         price = close + 0.02
     return bars
@@ -306,8 +318,14 @@ def make_breakout_bars(
     for i in range(flat_n):
         h = base_price + 0.01 + i * 0.0001  # very slowly rising highs
         bars.append(
-            make_bar(base_price - 0.005, h, base_price - 0.01, base_price + 0.005,
-                     symbol=symbol, ts=_SESSION_OPEN + timedelta(minutes=i))
+            make_bar(
+                base_price - 0.005,
+                h,
+                base_price - 0.01,
+                base_price + 0.005,
+                symbol=symbol,
+                ts=_SESSION_OPEN + timedelta(minutes=i),
+            )
         )
     # Breakout period: accelerating rise, strictly increasing highs
     price = base_price
@@ -316,7 +334,9 @@ def make_breakout_bars(
         step = base_price * 0.003 * (1.0 + j * 0.2)
         open_ = price
         close = price + step * 0.8
-        high = price + step + j * 0.001  # strictly increasing (j factor ensures uniqueness)
+        high = (
+            price + step + j * 0.001
+        )  # strictly increasing (j factor ensures uniqueness)
         low = price - 0.01
         ts = _SESSION_OPEN + timedelta(minutes=flat_n + j)
         bars.append(make_bar(open_, high, low, close, symbol=symbol, ts=ts))

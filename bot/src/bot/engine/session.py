@@ -69,12 +69,14 @@ class WallClock:
     def is_near_close(self) -> bool:
         n = self.now()
         from datetime import timedelta
+
         return n >= self._close - timedelta(minutes=5)
 
 
 @dataclass
 class CandleSignal:
     """Per-symbol signals computed on each candle."""
+
     symbol: str
     bars: list[Bar]
     macd: MacdState
@@ -87,6 +89,7 @@ class CandleSignal:
 @dataclass
 class TradeRecord:
     """In-memory record of an executed trade."""
+
     symbol: str
     entry_order: Order
     entry_price: float
@@ -100,6 +103,7 @@ class TradeRecord:
 @dataclass
 class SessionResult:
     """Summary of a completed trading session."""
+
     trades_entered: int = 0
     trades_exited: int = 0
     realized_pnl: float = 0.0
@@ -135,9 +139,7 @@ class ExecutionSession:
 
         self._daily_state: DailyState | None = None
         self._open_trades: dict[str, TradeRecord] = {}  # symbol → TradeRecord
-        self._result = SessionResult(
-            goalpost_trade_count=config.goalpost_trade_count()
-        )
+        self._result = SessionResult(goalpost_trade_count=config.goalpost_trade_count())
         self._z_cutoff_passed = False
 
     # ------------------------------------------------------------------
@@ -399,6 +401,7 @@ class ExecutionSession:
             # 3. Topping / back-side detected — dump remainder
             else:
                 from bot.engine.gate import _BEARISH_TAGS
+
                 has_reversal = any(t in _BEARISH_TAGS for t in pattern_tags)
                 is_backside = not macd.eligible or macd.slope <= 0
 

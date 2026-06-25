@@ -33,10 +33,14 @@ def _pos(
 
 
 def _macd(eligible: bool = True, slope: float = 0.1) -> MacdState:
-    return MacdState(value=1.0, slope=slope, hist=0.05, favorability=0.7, eligible=eligible)
+    return MacdState(
+        value=1.0, slope=slope, hist=0.05, favorability=0.7, eligible=eligible
+    )
 
 
-_BULLISH = frozenset(["bullish_engulfing", "hammer", "morning_star", "bullish_continuation"])
+_BULLISH = frozenset(
+    ["bullish_engulfing", "hammer", "morning_star", "bullish_continuation"]
+)
 
 
 class TestTakeProfit:
@@ -99,9 +103,7 @@ class TestTrailOffPerCandle:
     def test_dump_remainder_when_not_bullish(self) -> None:
         pos = _pos(shares=100, remaining=60)
         macd = _macd(eligible=False, slope=-0.1)  # not bullish
-        sig = trail_off_per_candle(
-            pos, macd, [], _BULLISH, fraction=0.25
-        )
+        sig = trail_off_per_candle(pos, macd, [], _BULLISH, fraction=0.25)
         assert sig is not None
         assert sig.is_final
         assert sig.shares_to_sell == 60  # dump all remaining
@@ -110,7 +112,11 @@ class TestTrailOffPerCandle:
         pos = _pos(shares=100, remaining=80)
         macd = _macd(eligible=True, slope=0.1)
         sig = trail_off_per_candle(
-            pos, macd, ["bullish_continuation", "bearish_engulfing"], _BULLISH, fraction=0.25
+            pos,
+            macd,
+            ["bullish_continuation", "bearish_engulfing"],
+            _BULLISH,
+            fraction=0.25,
         )
         assert sig is not None
         assert sig.is_final  # bearish tag → dump remainder

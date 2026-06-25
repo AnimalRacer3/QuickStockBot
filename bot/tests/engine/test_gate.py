@@ -16,7 +16,9 @@ _ENABLED = ["bullish_engulfing", "hammer", "morning_star", "bullish_continuation
 
 
 def _macd(eligible: bool = True, slope: float = 0.1, value: float = 1.0) -> MacdState:
-    return MacdState(value=value, slope=slope, hist=0.05, favorability=0.7, eligible=eligible)
+    return MacdState(
+        value=value, slope=slope, hist=0.05, favorability=0.7, eligible=eligible
+    )
 
 
 class TestHigherHighs:

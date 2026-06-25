@@ -60,7 +60,9 @@ def check_daily_limits(
     # Max-loss circuit breaker (daily_max_loss_pct is negative)
     if pnl_pct <= config.daily_max_loss_pct:
         state.halted = True
-        state.halt_reason = f"daily max loss hit ({pnl_pct:.2f}% <= {config.daily_max_loss_pct:.2f}%)"
+        state.halt_reason = (
+            f"daily max loss hit ({pnl_pct:.2f}% <= {config.daily_max_loss_pct:.2f}%)"
+        )
         if config.flatten_on_max_loss:
             return DailyAction.FLATTEN_AND_HALT
         return DailyAction.HALT
