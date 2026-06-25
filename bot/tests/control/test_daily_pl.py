@@ -12,13 +12,11 @@ from __future__ import annotations
 
 import datetime
 import sqlite3
-import time
 
 import pytest
 
 from bot.control.db import get_daily_pl, mark_run_day
 from tests.control.conftest import insert_order, insert_trade
-
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 

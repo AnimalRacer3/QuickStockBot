@@ -8,7 +8,6 @@ import uuid
 
 import pytest
 
-
 # ─── Full DB schema (migrations 001–004 inlined) ──────────────────────────────
 
 _SCHEMA_SQL = """

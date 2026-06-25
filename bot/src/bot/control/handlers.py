@@ -16,7 +16,6 @@ from typing import Any
 
 from bot.control import db as dbmod
 
-
 # ─── Settings helpers ─────────────────────────────────────────────────────────
 
 # Fields whose values must never be set by update_settings

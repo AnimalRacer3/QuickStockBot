@@ -7,9 +7,7 @@ Every protocol method is exercised against /shared schema expectations.
 from __future__ import annotations
 
 import asyncio
-import json
 import sqlite3
-import time
 import uuid
 
 import pytest
@@ -30,7 +28,6 @@ from bot.control.handlers import (
 from bot.control.relay_client import RelayClient
 from tests.control.conftest import insert_order, insert_ticker, insert_trade
 from tests.control.mock_relay import MockSocketFactory
-
 
 # ─── Direct handler tests ─────────────────────────────────────────────────────
 

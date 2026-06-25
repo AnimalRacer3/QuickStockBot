@@ -16,7 +16,6 @@ from bot.control.relay_client import RelayClient, compute_connection_proof
 from tests.control.conftest import insert_ticker
 from tests.control.mock_relay import MockRelaySocket, MockSocketFactory
 
-
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 

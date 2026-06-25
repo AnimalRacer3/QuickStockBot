@@ -15,7 +15,6 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from bot.control.handlers import (
-    dispatch,
     handle_get_daily_pl,
     handle_get_lists,
     handle_get_order_detail,
@@ -23,7 +22,6 @@ from bot.control.handlers import (
     handle_get_state,
     handle_get_ticker_detail,
     handle_get_trade_history,
-    handle_subscribe_logs,
     handle_update_lists,
     handle_update_settings,
 )

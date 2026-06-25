@@ -11,13 +11,11 @@ Rules:
 
 from __future__ import annotations
 
-import math
 import sqlite3
 
 import pytest
 
 from bot.control.handlers import handle_get_settings, handle_update_settings
-
 
 # ─── Helper ───────────────────────────────────────────────────────────────────
 
