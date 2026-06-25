@@ -25,8 +25,43 @@ from bot.models import (
 )
 
 
+class CalendarDay:
+    """Minimal representation of a single trading day from Alpaca's calendar."""
+
+    __slots__ = ("date", "open", "close")
+
+    def __init__(self, date: str, open_: str, close: str) -> None:
+        self.date = date  # "YYYY-MM-DD"
+        self.open = open_  # "HH:MM" Eastern
+        self.close = close  # "HH:MM" Eastern
+
+
+class ClockInfo:
+    """Current market clock from Alpaca."""
+
+    __slots__ = ("timestamp", "is_open", "next_open", "next_close")
+
+    def __init__(
+        self,
+        timestamp: str,
+        is_open: bool,
+        next_open: str,
+        next_close: str,
+    ) -> None:
+        self.timestamp = timestamp
+        self.is_open = is_open
+        self.next_open = next_open
+        self.next_close = next_close
+
+
 class MarketClient(ABC):
     """Interface for all market/broker interactions."""
+
+    @abstractmethod
+    def get_calendar(self, start: str, end: str) -> list[CalendarDay]: ...
+
+    @abstractmethod
+    def get_clock(self) -> ClockInfo: ...
 
     @abstractmethod
     def get_bars(
@@ -356,3 +391,17 @@ class AlpacaClient(MarketClient):
     def get_account(self) -> AccountSnapshot:
         raw = self._broker_get("/v2/account")
         return self._map_account(raw)
+
+    def get_calendar(self, start: str, end: str) -> list[CalendarDay]:
+        data = self._broker_get("/v2/calendar", start=start, end=end)
+        rows: list[dict] = data if isinstance(data, list) else []  # type: ignore[type-arg]
+        return [CalendarDay(d["date"], d["open"], d["close"]) for d in rows]
+
+    def get_clock(self) -> ClockInfo:
+        raw = self._broker_get("/v2/clock")
+        return ClockInfo(
+            timestamp=raw["timestamp"],
+            is_open=bool(raw.get("is_open", False)),
+            next_open=raw.get("next_open", ""),
+            next_close=raw.get("next_close", ""),
+        )

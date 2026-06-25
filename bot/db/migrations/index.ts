@@ -1,5 +1,6 @@
 import { migration001 } from './001_initial_schema';
 import { migration002 } from './002_section04_ta';
+import { migration003 } from './003_section05_scanner';
 
 export interface Migration {
   version: number;
@@ -7,4 +8,4 @@ export interface Migration {
   sql: string;
 }
 
-export const migrations: Migration[] = [migration001, migration002];
+export const migrations: Migration[] = [migration001, migration002, migration003];
