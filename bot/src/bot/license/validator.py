@@ -70,7 +70,9 @@ class LicenseValidator:
         self._url = validate_url
         self._key = license_key
         self._db = db
-        self._http: _HttpClient = http_client or httpx.Client(timeout=10.0)
+        self._http: _HttpClient = (
+            http_client if http_client is not None else httpx.Client(timeout=10.0)
+        )
         # Restore any cached state so trading decisions are instant on restart
         self._state: LicenseStatus = self._load_cached()
 
