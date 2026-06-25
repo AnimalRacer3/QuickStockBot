@@ -4,18 +4,23 @@ import { defineConfig, devices } from "@playwright/test";
 // test files produces cookies the dev server will accept.
 process.env.SESSION_SECRET = "test-secret-for-playwright-must-be-32c";
 
-const preinstalledChrome = process.env.PLAYWRIGHT_BROWSERS_PATH
-  ? `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium_headless_shell-1194/chrome-linux/headless_shell`
-  : undefined;
+const preinstalledChrome =
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ??
+  (process.env.PLAYWRIGHT_BROWSERS_PATH
+    ? `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium_headless_shell-1194/chrome-linux/headless_shell`
+    : undefined);
 
 export default defineConfig({
-  testDir: "./tests/e2e",
+  testMatch: ["**/e2e/**/*.spec.ts", "**/tests/e2e/**/*.spec.ts"],
   fullyParallel: false,
+  forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
+  workers: 1,
   reporter: process.env.CI ? "github" : "line",
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
+    headless: true,
     launchOptions: {
       executablePath: preinstalledChrome,
     },
@@ -41,4 +46,6 @@ export default defineConfig({
     },
     timeout: 60_000,
   },
+  globalSetup: "./e2e/global-setup.ts",
+  globalTeardown: "./e2e/global-teardown.ts",
 });
