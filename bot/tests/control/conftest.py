@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 import time
 import uuid
+from collections.abc import Generator
 
 import pytest
 
@@ -139,7 +140,7 @@ _DEFAULT_SETTINGS = [
 
 
 @pytest.fixture
-def db() -> sqlite3.Connection:
+def db() -> Generator[sqlite3.Connection, None, None]:
     """In-memory SQLite DB with the full schema and default settings seeded."""
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.row_factory = sqlite3.Row
