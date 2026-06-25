@@ -63,7 +63,24 @@
       "minimum": 0.1,
       "maximum": 10.0,
       "default": 1.0,
-      "description": "Percent of buying power to risk per trade."
+      "description": "Percent of buying power to risk per trade. Locked to daily_risk_pct/max_positions when risk_override_enabled is false."
+    },
+    "daily_risk_pct": {
+      "type": "number",
+      "minimum": 0.1,
+      "maximum": 100.0,
+      "default": 5.0,
+      "description": "Daily risk budget as percentage of buying power."
+    },
+    "risk_override_enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, risk_per_trade_pct can be set explicitly and must be < daily_risk_pct. When false, risk_per_trade_pct is locked to daily_risk_pct / max_positions."
+    },
+    "goal_post_trade_count": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Computed: floor(daily_risk_pct / risk_per_trade_pct). Read-only — returned by get_settings, ignored in update_settings."
     },
     "min_score": {
       "type": "number",
