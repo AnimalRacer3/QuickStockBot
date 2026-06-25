@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
+from typing import Literal
 
 from bot.engine.config import ExecutionConfig
 from bot.engine.session import ExecutionSession
@@ -577,7 +578,11 @@ class TestDumpExit:
 
 
 class TestTrailOffExit:
-    def _cfg_trail(self, trigger: str = "per_candle", **kw: object) -> ExecutionConfig:
+    def _cfg_trail(
+        self,
+        trigger: Literal["per_candle", "candle_pattern"] = "per_candle",
+        **kw: object,
+    ) -> ExecutionConfig:
         return ExecutionConfig(
             exit_mode="trail_off",
             trail_off_trigger=trigger,

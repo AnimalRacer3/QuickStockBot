@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Set as AbstractSet
 from dataclasses import dataclass, field
 
 from bot.ta.models import MacdState
@@ -29,7 +30,7 @@ class ExitSignal:
 
 
 def _is_bullish_state(
-    macd: MacdState, pattern_tags: list[str], bullish_tags: set[str]
+    macd: MacdState, pattern_tags: list[str], bullish_tags: AbstractSet[str]
 ) -> bool:
     """Return True when momentum stays bullish: MACD eligible + bullish pattern, no reversal."""
     from bot.engine.gate import _BEARISH_TAGS
@@ -74,7 +75,7 @@ def trail_off_per_candle(
     position: OpenPosition,
     macd: MacdState,
     pattern_tags: list[str],
-    bullish_tags: set[str],
+    bullish_tags: AbstractSet[str],
     fraction: float,
     reason: str = "",
 ) -> ExitSignal | None:
@@ -104,7 +105,7 @@ def trail_off_candle_pattern(
     position: OpenPosition,
     macd: MacdState,
     pattern_tags: list[str],
-    bullish_tags: set[str],
+    bullish_tags: AbstractSet[str],
     prev_pattern_tags: list[str],
     fraction: float,
     reason: str = "",
