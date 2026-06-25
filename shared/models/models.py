@@ -55,6 +55,18 @@ class LogCategory(str, Enum):
     system = "system"
 
 
+class DailyPLColor(str, Enum):
+    green = "green"
+    red = "red"
+    blue = "blue"
+
+
+class TickerRole(str, Enum):
+    leader = "leader"
+    laggard = "laggard"
+    standalone = "standalone"
+
+
 class RpcMethodName(str, Enum):
     get_state = "get_state"
     get_active_tickers = "get_active_tickers"
@@ -66,6 +78,7 @@ class RpcMethodName(str, Enum):
     get_trade_history = "get_trade_history"
     get_order_detail = "get_order_detail"
     subscribe_logs = "subscribe_logs"
+    get_daily_pl = "get_daily_pl"
 
 
 # ─── Settings ─────────────────────────────────────────────────────────────────
@@ -84,6 +97,9 @@ class Settings(BaseModel):
     blacklist: list[str] = Field(default_factory=list)
     max_positions: int = Field(default=5, ge=1, le=50)
     risk_per_trade_pct: float = Field(default=1.0, ge=0.1, le=10.0)
+    daily_risk_pct: float = Field(default=5.0, ge=0.1, le=100.0)
+    risk_override_enabled: bool = False
+    goal_post_trade_count: int | None = Field(default=None, ge=1)
     min_score: float = Field(default=60.0, ge=0, le=100)
     auto_trade: bool = False
     macd_fast: int = 12
@@ -106,6 +122,15 @@ class TickerState(BaseModel):
     pattern_tags: list[str] = Field(default_factory=list)
     score: float = Field(ge=0, le=100)
     updated_at: datetime
+    # Section 8 extended fields
+    float_shares: int | None = None
+    unknown_float: bool | None = None
+    tradable: bool | None = None
+    rvol: float | None = None
+    pct_change: float | None = None
+    macd_favorability: float | None = Field(default=None, ge=-1.0, le=1.0)
+    macd_eligible: bool | None = None
+    role: TickerRole | None = None
 
 
 # ─── Order ────────────────────────────────────────────────────────────────────
@@ -169,6 +194,21 @@ class AccountSnapshot(BaseModel):
     pdt_trades_remaining: int | None = Field(default=None, ge=0)
     open_positions: int | None = Field(default=None, ge=0)
     snapshot_at: datetime
+
+
+# ─── Daily P/L ────────────────────────────────────────────────────────────────
+
+
+class DailyPLEntry(BaseModel):
+    date: str
+    ran: bool
+    net_pl: float
+    trade_count: int = Field(ge=0)
+    color: DailyPLColor
+
+
+class DailyPLResult(BaseModel):
+    days: list[DailyPLEntry]
 
 
 # ─── Relay Protocol ───────────────────────────────────────────────────────────
