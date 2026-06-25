@@ -22,7 +22,7 @@ test.describe("Dashboard e2e", () => {
     await waitForConnected(page);
     const logRegion = page.getByRole("log");
     await expect(logRegion).toBeVisible();
-    await expect(page.getByRole("log").getByText(/scanner idle/i)).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole("log").getByText(/scanner idle/i).first()).toBeVisible({ timeout: 8000 });
   });
 
   test("active tickers page — shows columns including unknown float", async ({ page }) => {
@@ -121,6 +121,6 @@ test.describe("Dashboard e2e", () => {
     await expect(page.locator("td", { hasText: "MEME" })).toBeVisible();
     // Clear filter
     await page.getByPlaceholder("Filter by ticker…").fill("");
-    await expect(page.locator("td", { hasText: "AAPL" })).toBeVisible();
+    await expect(page.locator("td", { hasText: "AAPL" }).first()).toBeVisible();
   });
 });

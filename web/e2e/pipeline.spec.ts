@@ -36,7 +36,7 @@ test.describe("Pipeline — full bot → relay → dashboard flow", () => {
     const logRegion = page.getByRole("log");
     await expect(logRegion).toBeVisible();
     // The mock relay sends "scanner idle" after subscribe_logs and also via web_auth pipeline
-    await expect(page.getByRole("log").getByText(/scanner idle/i)).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole("log").getByText(/scanner idle/i).first()).toBeVisible({ timeout: 8000 });
   });
 
   test("scanner pass surfaces unknown-float ticker and tradable leader", async ({ page }) => {
