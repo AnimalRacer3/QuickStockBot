@@ -65,9 +65,15 @@ class TestPriorProfitTracker:
         tracker.record_trade("TSLA", net_pnl=-40.0)
         tracker.record_trade("NVDA", net_pnl=250.0)
 
-        assert tracker.get_stats("AAPL").cumulative_pnl == pytest.approx(100.0)
-        assert tracker.get_stats("TSLA").cumulative_pnl == pytest.approx(-40.0)
-        assert tracker.get_stats("NVDA").cumulative_pnl == pytest.approx(250.0)
+        aapl = tracker.get_stats("AAPL")
+        tsla = tracker.get_stats("TSLA")
+        nvda = tracker.get_stats("NVDA")
+        assert aapl is not None
+        assert tsla is not None
+        assert nvda is not None
+        assert aapl.cumulative_pnl == pytest.approx(100.0)
+        assert tsla.cumulative_pnl == pytest.approx(-40.0)
+        assert nvda.cumulative_pnl == pytest.approx(250.0)
         assert len(tracker.all_stats()) == 3
 
     def test_long_trade_profit(self):
@@ -76,6 +82,7 @@ class TestPriorProfitTracker:
         net_pnl = (12.0 - 10.0) * 100 - 1.0
         tracker.record_trade("AAPL", net_pnl=net_pnl)
         stats = tracker.get_stats("AAPL")
+        assert stats is not None
         assert stats.cumulative_pnl == pytest.approx(199.0)
         assert stats.win_count == 1
 
@@ -85,6 +92,7 @@ class TestPriorProfitTracker:
         net_pnl = (10.0 - 8.0) * 100 - 1.0
         tracker.record_trade("TSLA", net_pnl=net_pnl)
         stats = tracker.get_stats("TSLA")
+        assert stats is not None
         assert stats.cumulative_pnl == pytest.approx(199.0)
         assert stats.win_count == 1
 
@@ -94,6 +102,7 @@ class TestPriorProfitTracker:
         net_pnl = (10.0 - 11.0) * 50 - 0.5
         tracker.record_trade("AMD", net_pnl=net_pnl)
         stats = tracker.get_stats("AMD")
+        assert stats is not None
         assert stats.cumulative_pnl < 0
         assert stats.win_count == 0
 
@@ -101,6 +110,7 @@ class TestPriorProfitTracker:
         tracker = PriorProfitTracker()
         tracker.record_trade("AAPL", net_pnl=0.0)
         stats = tracker.get_stats("AAPL")
+        assert stats is not None
         assert stats.win_count == 0
         assert stats.trade_count == 1
 
@@ -147,6 +157,7 @@ class TestPriorProfitTracker:
         tracker.record_trade("AAPL", net_pnl=-30.0)
 
         stats = tracker.get_stats("AAPL")
+        assert stats is not None
         assert stats.cumulative_pnl == pytest.approx(70.0)
         assert stats.trade_count == 3
         assert stats.win_count == 2
