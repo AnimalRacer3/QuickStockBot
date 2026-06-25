@@ -19,6 +19,8 @@ import type {
 
 export interface RelayConfig {
   port: number;
+  /** Bind address — "0.0.0.0" for Railway/public, "127.0.0.1" for local-only dev */
+  host?: string;
   /** SaaS validation endpoint URL (Section 12) */
   validateUrl: string;
   /** HMAC secret shared with bot instances; skip proof check if empty */
@@ -60,9 +62,11 @@ export class RelayServer {
   /** Quick ws → bot_id lookup without scanning routing map */
   private wsToBotId = new Map<WebSocket, string>();
   private cfg: Required<RelayConfig>;
+  private boundHost: string = "0.0.0.0";
 
   constructor(config: RelayConfig) {
     this.cfg = {
+      host: "0.0.0.0",
       connectionSecret: "",
       rpcTimeoutMs: DEFAULTS.rpcTimeoutMs,
       pingIntervalMs: DEFAULTS.pingIntervalMs,
@@ -467,10 +471,12 @@ export class RelayServer {
 
   listen(): Promise<void> {
     return new Promise((resolve) => {
-      this.httpServer.listen(this.cfg.port, "127.0.0.1", () => {
+      this.httpServer.listen(this.cfg.port, this.cfg.host, () => {
         const addr = this.httpServer.address();
         const port = typeof addr === "object" && addr ? addr.port : this.cfg.port;
-        logger.info(`Relay listening on port ${port}`);
+        const host = typeof addr === "object" && addr ? addr.address : this.cfg.host;
+        this.boundHost = host;
+        logger.info(`Relay listening on ${host}:${port}`);
         this.startHeartbeat();
         this.cleanupInterval = setInterval(() => {
           this.botRateLimiter.cleanup();
@@ -521,6 +527,11 @@ export class RelayServer {
     const addr = this.httpServer.address();
     if (!addr || typeof addr === "string") throw new Error("Server not listening");
     return addr.port;
+  }
+
+  /** The actual bind address after listen() resolves. */
+  get configuredHost(): string {
+    return this.boundHost;
   }
 }
 

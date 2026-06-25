@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { RelayProvider } from "@/lib/relay-context";
 import { Nav } from "@/components/Nav";
 import { DashboardNav } from "@/components/DashboardNav";
+import { DisclaimerBanner } from "@/components/DisclaimerBanner";
 import { Footer } from "@/components/Footer";
 
 const DASHBOARD_PREFIXES = [
@@ -28,6 +29,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       {isDashboard ? (
         <>
           <DashboardNav />
+          <DisclaimerBanner />
           <main style={{ padding: "24px" }}>{children}</main>
         </>
       ) : (

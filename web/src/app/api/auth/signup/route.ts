@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { hashPassword, generateToken, getClientIp } from "@/lib/auth";
 import { isEmailTaken, isRepeatIp } from "@/lib/dedupe";
 import { sendVerificationEmail } from "@/lib/email";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -16,6 +17,11 @@ export async function POST(req: NextRequest) {
   }
 
   const clientIp = getClientIp(req);
+
+  // 5 signup attempts per IP per minute
+  if (!checkRateLimit(`signup:${clientIp}`, 5, 5 / 60)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
 
   if (await isEmailTaken(email)) {
     return NextResponse.json({ error: "Email already registered" }, { status: 409 });
