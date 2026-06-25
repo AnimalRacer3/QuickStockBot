@@ -1,5 +1,15 @@
-import { redirect } from "next/navigation";
+import { Hero } from "@/components/landing/Hero";
+import { HowItWorks } from "@/components/landing/HowItWorks";
+import { Features } from "@/components/landing/Features";
+import { Pricing } from "@/components/landing/Pricing";
 
 export default function Home() {
-  redirect("/connect");
+  return (
+    <>
+      <Hero />
+      <HowItWorks />
+      <Features />
+      <Pricing />
+    </>
+  );
 }

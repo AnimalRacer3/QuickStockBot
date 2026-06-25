@@ -64,6 +64,41 @@
       "type": "string",
       "format": "date-time",
       "description": "ISO-8601 UTC timestamp of this snapshot."
+    },
+    "float_shares": {
+      "type": ["integer", "null"],
+      "description": "Known float share count; null when unknown."
+    },
+    "unknown_float": {
+      "type": "boolean",
+      "description": "True when the float is not publicly known."
+    },
+    "tradable": {
+      "type": "boolean",
+      "description": "False when the bot excludes this symbol due to unknown float policy."
+    },
+    "rvol": {
+      "type": ["number", "null"],
+      "description": "Relative volume vs. historical average."
+    },
+    "pct_change": {
+      "type": ["number", "null"],
+      "description": "Intraday percentage change from prior close."
+    },
+    "macd_favorability": {
+      "type": ["number", "null"],
+      "minimum": -1.0,
+      "maximum": 1.0,
+      "description": "MACD favorability score in [-1, 1]."
+    },
+    "macd_eligible": {
+      "type": ["boolean", "null"],
+      "description": "True when MACD criteria are met for entry."
+    },
+    "role": {
+      "type": ["string", "null"],
+      "enum": ["leader", "laggard", "standalone", null],
+      "description": "Scanner-assigned role within the active set."
     }
   }
 }

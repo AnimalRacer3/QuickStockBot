@@ -1,4 +1,11 @@
+# Next.js
 .next/
-node_modules/
+out/
+
+# Playwright
 test-results/
 playwright-report/
+blob-report/
+
+# Misc
+*.tsbuildinfo

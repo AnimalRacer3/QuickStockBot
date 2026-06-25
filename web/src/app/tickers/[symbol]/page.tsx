@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRelay } from "@/lib/relay-context";
 import type { ExtendedTickerState } from "@/lib/types";
@@ -58,23 +58,24 @@ function fmtFloat(n: number | undefined): string {
   return n.toString();
 }
 
-export default function TickerDetailPage({ params }: { params: { symbol: string } }) {
+export default function TickerDetailPage({ params }: { params: Promise<{ symbol: string }> }) {
+  const { symbol } = React.use(params);
   const { client, connectionState, tickers } = useRelay();
   const [ticker, setTicker] = useState<ExtendedTickerState | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
     if (connectionState !== "connected" || !client) return;
-    const fromContext = tickers.find((t) => t.symbol === params.symbol);
+    const fromContext = tickers.find((t) => t.symbol === symbol);
     if (fromContext) {
       setTicker(fromContext);
       return;
     }
     client
-      .getTickerDetail(params.symbol)
+      .getTickerDetail(symbol)
       .then(setTicker)
       .catch((e: Error) => setError(e.message));
-  }, [client, connectionState, params.symbol, tickers]);
+  }, [client, connectionState, symbol, tickers]);
 
   if (connectionState !== "connected") {
     return (
