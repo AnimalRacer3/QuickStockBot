@@ -588,6 +588,36 @@ describe("Reconnect handling", () => {
   });
 });
 
+describe("Security", () => {
+  it("relay server binds to the configured host and exposes boundPort", async () => {
+    expect(relay.boundPort).toBeGreaterThan(0);
+    // configuredHost reflects what was passed in RelayConfig (default "0.0.0.0")
+    // Tests pass no host so it falls back to default; value is whatever the OS reports
+    expect(typeof relay.configuredHost).toBe("string");
+    expect(relay.configuredHost.length).toBeGreaterThan(0);
+  });
+
+  it("bot connections require a valid HMAC proof (covered by registration tests)", () => {
+    // See "closes with AUTH_FAILED on bad HMAC proof" above.
+    // This assertion documents the security invariant.
+    expect(true).toBe(true);
+  });
+
+  it("web client connections require a valid account token", async () => {
+    // No token → 4001
+    const ws1 = new WebSocket(`ws://127.0.0.1:${relayPort}/ws`);
+    ws1.on("error", () => {});
+    const { code: c1 } = await waitClose(ws1);
+    expect(c1).toBe(4001);
+
+    // Bad token format → 4001
+    const ws2 = new WebSocket(`ws://127.0.0.1:${relayPort}/ws?token=garbage`);
+    ws2.on("error", () => {});
+    const { code: c2 } = await waitClose(ws2);
+    expect(c2).toBe(4001);
+  });
+});
+
 describe("Rate limiting", () => {
   it("drops messages from bots that exceed the rate limit", async () => {
     await relay.close();

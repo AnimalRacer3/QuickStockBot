@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyPassword, signSession, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/auth";
+import {
+  verifyPassword,
+  signSession,
+  SESSION_COOKIE,
+  SESSION_TTL_SECONDS,
+  getClientIp,
+} from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
@@ -8,6 +15,12 @@ export async function POST(req: NextRequest) {
 
   if (!email || !password) {
     return NextResponse.json({ error: "Email and password required" }, { status: 400 });
+  }
+
+  // 10 login attempts per IP per minute
+  const clientIp = getClientIp(req);
+  if (!checkRateLimit(`login:${clientIp}`, 10, 10 / 60)) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const user = await prisma.user.findUnique({ where: { email } });

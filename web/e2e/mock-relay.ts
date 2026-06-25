@@ -122,10 +122,34 @@ const MOCK_TRADES = [
       { status: "filled", timestamp: "2024-03-12T09:40:12Z", filled_qty: 200, filled_price: 8.5 },
     ],
   },
+  {
+    // Trail-off exit: AAPL entry scaled out across 3 candles then daily halt fired
+    id: "trade-003",
+    symbol: "AAPL",
+    type: "buy",
+    timestamp: "2024-03-05T09:36:00Z",
+    qty: 100,
+    price: 15.0,
+    net_pl: 75.0,
+    status: "filled",
+    label: "good",
+    opened_at: "2024-03-05T09:36:00Z",
+    closed_at: "2024-03-05T10:30:00Z",
+    entry_order: { id: "ord-007", type: "buy", qty: 100, submitted_price: 15.0, filled_price: 15.0, status: "filled", submitted_at: "2024-03-05T09:36:00Z" },
+    exit_order: { id: "ord-011", type: "sell", qty: 50, submitted_price: 16.5, filled_price: 16.5, status: "filled", submitted_at: "2024-03-05T10:30:00Z" },
+    status_history: [
+      { status: "pending", timestamp: "2024-03-05T09:36:00Z" },
+      { status: "filled", timestamp: "2024-03-05T09:36:01Z", filled_qty: 100, filled_price: 15.0 },
+      { status: "partial_exit", timestamp: "2024-03-05T09:41:00Z", filled_qty: 25, filled_price: 15.6 },
+      { status: "partial_exit", timestamp: "2024-03-05T09:46:00Z", filled_qty: 25, filled_price: 16.0 },
+      { status: "exited", timestamp: "2024-03-05T10:30:00Z", filled_qty: 50, filled_price: 16.5 },
+    ],
+  },
 ];
 
 const MOCK_DAILY_PL = [
-  { date: "2024-03-05", total_pl: 45.0, trade_count: 1 },
+  // March 5: trade-001 ($45) + trade-003 trail-off ($75) = $120 profit, 2 trades → green
+  { date: "2024-03-05", total_pl: 120.0, trade_count: 2 },
   { date: "2024-03-12", total_pl: -80.0, trade_count: 1 },
   { date: "2024-03-19", total_pl: 0, trade_count: 1 },
 ];
@@ -181,16 +205,11 @@ function handleRpc(ws: WebSocket, id: string, method: string, params: Record<str
     }
     case "subscribe_logs":
       send(ws, { type: "rpc_response", id, payload: { result: { subscribed: true } } });
-      // Push a sample log event
       setTimeout(() => {
         send(ws, {
           type: "log",
           id: randomId(),
-          payload: {
-            timestamp: new Date().toISOString(),
-            category: "info",
-            message: "Mock relay connected — scanner idle",
-          },
+          payload: { timestamp: new Date().toISOString(), category: "system", message: "Mock relay connected — scanner idle" },
         });
       }, 200);
       break;
@@ -243,6 +262,25 @@ export function startMockRelay(): WebSocketServer {
                 },
               });
             }, 100);
+            // Pipeline simulation: scanner → entry → trail-off exits → daily halt
+            const pipelineLogs = [
+              { delay: 300, category: "system", message: "scanner idle: pre-open window not yet reached" },
+              { delay: 500, category: "info", message: "Scanner pass complete: 2 candidates, active=[AAPL] (MEME: unknown float, tradable=false)" },
+              { delay: 700, category: "trade", message: "ENTRY AAPL: 100 shares @ 15.00 (front-side momentum, score=72, gate=all gates passed)" },
+              { delay: 900, category: "trade", message: "PARTIAL EXIT AAPL: sold 25 of 100 shares @ 15.60 (trail_off per_candle scale-out)" },
+              { delay: 1100, category: "trade", message: "PARTIAL EXIT AAPL: sold 25 of 75 shares @ 16.00 (trail_off per_candle scale-out)" },
+              { delay: 1300, category: "trade", message: "EXIT AAPL: sold 50 shares @ 16.50 (bullishness ended, dumping remainder), pnl=$75.00" },
+              { delay: 1500, category: "system", message: "HALT: daily profit target hit (5.20% >= 5.00%) — no new entries for remainder of session" },
+            ];
+            for (const { delay, category, message } of pipelineLogs) {
+              setTimeout(() => {
+                send(ws, {
+                  type: "log",
+                  id: randomId(),
+                  payload: { timestamp: new Date().toISOString(), category, message },
+                });
+              }, delay);
+            }
           } else {
             send(ws, { type: "auth_failed", id: msg.id, payload: { message: "Invalid password" } });
           }

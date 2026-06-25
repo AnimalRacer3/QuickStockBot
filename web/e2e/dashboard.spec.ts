@@ -22,7 +22,7 @@ test.describe("Dashboard e2e", () => {
     await waitForConnected(page);
     const logRegion = page.getByRole("log");
     await expect(logRegion).toBeVisible();
-    await expect(page.getByText(/scanner idle/i)).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole("log").getByText(/scanner idle/i).first()).toBeVisible({ timeout: 8000 });
   });
 
   test("active tickers page — shows columns including unknown float", async ({ page }) => {
@@ -49,7 +49,7 @@ test.describe("Dashboard e2e", () => {
     // Trail Off fields should be hidden initially
     await expect(page.getByText("Trail Off Trigger (%)")).not.toBeVisible();
     // Select trail_off radio — the label wraps the input, so click the label text
-    await page.locator("label", { hasText: "Trail Off" }).click();
+    await page.locator("label", { hasText: /^Trail Off$/ }).click();
     await expect(page.getByText("Trail Off Trigger (%)")).toBeVisible();
     await page.getByRole("button", { name: "Save Settings" }).click();
     await expect(page.getByText("Settings saved.")).toBeVisible({ timeout: 5000 });
@@ -107,20 +107,20 @@ test.describe("Dashboard e2e", () => {
     await profitDay.click();
     // Should show day trades panel
     await expect(page.getByText("2024-03-05")).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("AAPL")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("AAPL").first()).toBeVisible({ timeout: 5000 });
   });
 
   test("trade history page — filter by ticker", async ({ page }) => {
     await connect(page);
     await page.getByRole("link", { name: "Trade History" }).click();
     await page.waitForURL("**/history", { timeout: 5000 });
-    await expect(page.getByText("AAPL")).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText("AAPL").first()).toBeVisible({ timeout: 8000 });
     // Filter by MEME
     await page.getByPlaceholder("Filter by ticker…").fill("MEME");
     await expect(page.locator("td", { hasText: "AAPL" })).not.toBeVisible();
     await expect(page.locator("td", { hasText: "MEME" })).toBeVisible();
     // Clear filter
     await page.getByPlaceholder("Filter by ticker…").fill("");
-    await expect(page.locator("td", { hasText: "AAPL" })).toBeVisible();
+    await expect(page.locator("td", { hasText: "AAPL" }).first()).toBeVisible();
   });
 });

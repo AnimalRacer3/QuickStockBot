@@ -229,3 +229,42 @@ jobs:
 
       - name: Validate fixtures against schemas
         run: npm test
+
+  # ─── Deploy configs validation ───────────────────────────────────────────────
+  deploy-configs:
+    name: Deploy configs
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: relay/package-lock.json
+
+      - name: Verify relay builds (Railway artifact)
+        working-directory: relay
+        run: npm ci && npm run build
+
+      - name: Verify web .env.example is present
+        run: test -f web/.env.example
+
+      - name: Verify relay .env.example is present
+        run: test -f relay/.env.example
+
+      - name: Verify Railway configs are present
+        run: test -f web/railway.toml && test -f relay/railway.toml
+
+  # ─── Deploy gate (all jobs must pass before main can deploy) ─────────────────
+  # This job is used as a required status check in branch protection.
+  # Railway's "deploy on CI pass" gate waits for this job.
+  deploy-gate:
+    name: Deploy gate
+    runs-on: ubuntu-latest
+    needs: [bot, relay, web, web-e2e, installer, shared, deploy-configs]
+
+    steps:
+      - name: All checks passed — safe to deploy
+        run: echo "All CI jobs passed. Railway deploy is unblocked."
