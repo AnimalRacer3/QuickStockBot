@@ -6,7 +6,7 @@ export class RateLimiter {
 
   constructor(
     private readonly maxTokens: number,
-    private readonly refillRatePerSec: number,
+    private readonly refillRatePerSec: number
   ) {}
 
   /**
@@ -22,10 +22,7 @@ export class RateLimiter {
     }
     // Refill tokens based on elapsed time
     const elapsed = (now - bucket.last) / 1000;
-    bucket.tokens = Math.min(
-      this.maxTokens,
-      bucket.tokens + elapsed * this.refillRatePerSec,
-    );
+    bucket.tokens = Math.min(this.maxTokens, bucket.tokens + elapsed * this.refillRatePerSec);
     bucket.last = now;
 
     if (bucket.tokens < 1) return false;

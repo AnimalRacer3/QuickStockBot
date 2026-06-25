@@ -4,15 +4,7 @@
  *         auth failures (bad license, wrong account scope, bad password)
  *         reconnect handling, rate-limit basics
  */
-import {
-  describe,
-  it,
-  beforeAll,
-  afterAll,
-  beforeEach,
-  afterEach,
-  expect,
-} from "vitest";
+import { describe, it, beforeAll, afterAll, beforeEach, afterEach, expect } from "vitest";
 import { WebSocket } from "ws";
 import { createHmac } from "crypto";
 import { createServer } from "http";
@@ -106,8 +98,11 @@ function openSocket(path: string): Promise<QSocket> {
 
   ws.on("message", (raw: Buffer) => {
     let msg: unknown;
-    try { msg = JSON.parse(raw.toString()); }
-    catch { msg = raw.toString(); }
+    try {
+      msg = JSON.parse(raw.toString());
+    } catch {
+      msg = raw.toString();
+    }
     if (waiters.length > 0) {
       waiters.shift()!.resolve(msg);
     } else {
@@ -131,8 +126,14 @@ function openSocket(path: string): Promise<QSocket> {
         reject(new Error("next() timeout"));
       }, timeoutMs);
       waiters.push({
-        resolve: (v) => { clearTimeout(timer); resolve(v); },
-        reject: (e) => { clearTimeout(timer); reject(e); },
+        resolve: (v) => {
+          clearTimeout(timer);
+          resolve(v);
+        },
+        reject: (e) => {
+          clearTimeout(timer);
+          reject(e);
+        },
       });
     });
   };
@@ -144,11 +145,7 @@ function openSocket(path: string): Promise<QSocket> {
 }
 
 // Wait for a specific message type (skips others until found or timeout)
-async function waitForType(
-  sock: QSocket,
-  type: string,
-  timeoutMs = 3000,
-): Promise<unknown> {
+async function waitForType(sock: QSocket, type: string, timeoutMs = 3000): Promise<unknown> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const msg = (await sock.next(deadline - Date.now())) as { type: string };
@@ -163,9 +160,7 @@ function waitClose(ws: WebSocket): Promise<{ code: number; reason: string }> {
       resolve({ code: 1000, reason: "" });
       return;
     }
-    ws.once("close", (code, reasonBuf) =>
-      resolve({ code, reason: reasonBuf.toString() }),
-    );
+    ws.once("close", (code, reasonBuf) => resolve({ code, reason: reasonBuf.toString() }));
   });
 }
 
@@ -204,16 +199,13 @@ async function connectBot(opts: {
           connection_password_proof: proof,
           version: opts.version ?? "0.1.0",
         },
-      }),
+      })
     );
   }
   return { sock, nonce };
 }
 
-async function registeredBot(opts: {
-  licenseKey?: string;
-  botId?: string;
-}): Promise<QSocket> {
+async function registeredBot(opts: { licenseKey?: string; botId?: string }): Promise<QSocket> {
   const { sock } = await connectBot(opts);
   const registered = (await sock.next()) as { type: string };
   expect(registered.type).toBe("registered");
@@ -228,7 +220,7 @@ function sendRpc(
   sock: QSocket,
   botId: string,
   method: string,
-  params?: Record<string, unknown>,
+  params?: Record<string, unknown>
 ): string {
   const id = `rpc-${Math.random().toString(36).slice(2)}`;
   sock.ws.send(
@@ -236,7 +228,7 @@ function sendRpc(
       type: "rpc_request",
       id,
       payload: { bot_id: botId, method, params },
-    }),
+    })
   );
   return id;
 }
@@ -282,7 +274,7 @@ describe("Bot registration", () => {
           connection_password_proof: "bad-proof",
           version: "0.1.0",
         },
-      }),
+      })
     );
     const { code } = await waitClose(sock.ws);
     expect(code).toBe(4001);
@@ -301,7 +293,7 @@ describe("Bot registration", () => {
           connection_password_proof: proof,
           version: "0.1.0",
         },
-      }),
+      })
     );
     const { code } = await waitClose(sock.ws);
     expect(code).toBe(4001);
@@ -314,7 +306,7 @@ describe("Bot registration", () => {
         type: "register",
         id: "r1",
         payload: { bot_id: "bot-x" },
-      }),
+      })
     );
     const { code } = await waitClose(sock.ws);
     expect(code).toBe(4004);
@@ -348,7 +340,7 @@ describe("RPC round-trip", () => {
         type: "rpc_response",
         id: req.id,
         payload: { result: { account: null, tickers: [] } },
-      }),
+      })
     );
 
     const response = (await waitForType(webSock, "rpc_response")) as {
@@ -411,7 +403,7 @@ describe("Log and state streams", () => {
           category: "info",
           message: "hello from bot",
         },
-      }),
+      })
     );
 
     const logMsg = (await waitForType(webSock, "log", 2000)) as {
@@ -426,7 +418,7 @@ describe("Log and state streams", () => {
         type: "rpc_response",
         id: rpcReq.id,
         payload: { result: { symbols: [] } },
-      }),
+      })
     );
 
     botSock.close();
@@ -460,7 +452,7 @@ describe("Log and state streams", () => {
             },
           ],
         },
-      }),
+      })
     );
 
     const su = (await waitForType(webSock, "state_update", 2000)) as {
@@ -474,7 +466,7 @@ describe("Log and state streams", () => {
         type: "rpc_response",
         id: rpcReq.id,
         payload: { result: { symbols: [] } },
-      }),
+      })
     );
 
     botSock.close();
@@ -518,7 +510,7 @@ describe("Account scoping", () => {
         type: "rpc_response",
         id: req.id,
         payload: { result: { ok: true } },
-      }),
+      })
     );
 
     const response = (await waitForType(webSock, "rpc_response")) as {
@@ -634,15 +626,13 @@ describe("Rate limiting", () => {
             category: "info",
             message: `msg ${i}`,
           },
-        }),
+        })
       );
     }
 
     await new Promise((r) => setTimeout(r, 300));
 
-    const logMsgs = received.filter(
-      (m) => (m as { type: string }).type === "log",
-    );
+    const logMsgs = received.filter((m) => (m as { type: string }).type === "log");
     expect(logMsgs.length).toBeLessThan(20);
 
     botSock.close();

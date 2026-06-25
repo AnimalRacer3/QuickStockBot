@@ -1,8 +1,7 @@
 const LEVELS = { debug: 0, info: 1, warning: 2, error: 3 } as const;
 type Level = keyof typeof LEVELS;
 
-const currentLevel: Level =
-  (process.env.LOG_LEVEL as Level | undefined) ?? "info";
+const currentLevel: Level = (process.env.LOG_LEVEL as Level | undefined) ?? "info";
 
 function log(level: Level, msg: string, ctx?: Record<string, unknown>): void {
   if (LEVELS[level] < LEVELS[currentLevel]) return;

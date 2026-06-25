@@ -41,7 +41,7 @@ export class RoutingMap {
               type: "error",
               id: "system",
               payload: { code: "BOT_DISCONNECTED", message: "Bot disconnected" },
-            }),
+            })
           );
         }
       }

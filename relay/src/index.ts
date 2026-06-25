@@ -2,8 +2,7 @@ import { RelayServer } from "./server.js";
 import { logger } from "./logger.js";
 
 const PORT = parseInt(process.env.RELAY_PORT ?? "8080", 10);
-const VALIDATE_URL =
-  process.env.SAAS_VALIDATE_URL ?? "http://localhost:3000/api/validate";
+const VALIDATE_URL = process.env.SAAS_VALIDATE_URL ?? "http://localhost:3000/api/validate";
 const CONNECTION_SECRET = process.env.RELAY_CONNECTION_SECRET ?? "";
 
 const relay = new RelayServer({
@@ -20,9 +19,15 @@ relay.listen().catch((err: unknown) => {
 });
 
 process.on("SIGTERM", () => {
-  relay.close().then(() => process.exit(0)).catch(() => process.exit(1));
+  relay
+    .close()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
 });
 
 process.on("SIGINT", () => {
-  relay.close().then(() => process.exit(0)).catch(() => process.exit(1));
+  relay
+    .close()
+    .then(() => process.exit(0))
+    .catch(() => process.exit(1));
 });

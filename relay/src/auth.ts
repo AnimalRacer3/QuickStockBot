@@ -6,14 +6,8 @@ export function generateNonce(): string {
 }
 
 /** Verify HMAC-SHA256(nonce, secret) === proof */
-export function verifyHmac(
-  nonce: string,
-  secret: string,
-  proof: string,
-): boolean {
-  const expected = createHmac("sha256", secret)
-    .update(nonce)
-    .digest("hex");
+export function verifyHmac(nonce: string, secret: string, proof: string): boolean {
+  const expected = createHmac("sha256", secret).update(nonce).digest("hex");
   // Constant-time compare to prevent timing attacks
   if (expected.length !== proof.length) return false;
   let diff = 0;
@@ -30,7 +24,7 @@ export function verifyHmac(
 export async function validateLicense(
   licenseKey: string,
   botId: string,
-  validateUrl: string,
+  validateUrl: string
 ): Promise<LicenseValidationResult> {
   try {
     const resp = await fetch(validateUrl, {

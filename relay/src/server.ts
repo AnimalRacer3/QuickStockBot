@@ -73,14 +73,8 @@ export class RelayServer {
     };
 
     this.routing = new RoutingMap();
-    this.botRateLimiter = new RateLimiter(
-      this.cfg.rateLimitBurst,
-      this.cfg.rateLimitMsgPerSec,
-    );
-    this.webRateLimiter = new RateLimiter(
-      this.cfg.rateLimitBurst,
-      this.cfg.rateLimitMsgPerSec,
-    );
+    this.botRateLimiter = new RateLimiter(this.cfg.rateLimitBurst, this.cfg.rateLimitMsgPerSec);
+    this.webRateLimiter = new RateLimiter(this.cfg.rateLimitBurst, this.cfg.rateLimitMsgPerSec);
 
     this.httpServer = createServer((_req, res) => {
       res.writeHead(200);
@@ -107,7 +101,7 @@ export class RelayServer {
 
     this.botWss.on("connection", (ws) => this.handleBotConnection(ws));
     this.webWss.on("connection", (ws, req) =>
-      this.handleWebConnection(ws, req as { url?: string }),
+      this.handleWebConnection(ws, req as { url?: string })
     );
   }
 
@@ -154,11 +148,7 @@ export class RelayServer {
     });
   }
 
-  private handleBotMessage(
-    ws: WebSocket,
-    raw: string,
-    pending: PendingBot,
-  ): void {
+  private handleBotMessage(ws: WebSocket, raw: string, pending: PendingBot): void {
     let msg: Envelope;
     try {
       msg = JSON.parse(raw) as Envelope;
@@ -179,11 +169,7 @@ export class RelayServer {
         ws.close(4003, "NOT_REGISTERED");
         return;
       }
-      void this.handleRegister(
-        ws,
-        msg as Envelope<"register", RegisterPayload>,
-        pending,
-      );
+      void this.handleRegister(ws, msg as Envelope<"register", RegisterPayload>, pending);
       return;
     }
 
@@ -196,10 +182,7 @@ export class RelayServer {
 
     switch (msg.type) {
       case "rpc_response":
-        this.handleRpcResponse(
-          botId,
-          msg as Envelope<"rpc_response", RpcResponsePayload>,
-        );
+        this.handleRpcResponse(botId, msg as Envelope<"rpc_response", RpcResponsePayload>);
         break;
 
       case "log":
@@ -232,10 +215,9 @@ export class RelayServer {
   private async handleRegister(
     ws: WebSocket,
     msg: Envelope<"register", RegisterPayload>,
-    pending: PendingBot,
+    pending: PendingBot
   ): Promise<void> {
-    const { bot_id, license_key, connection_password_proof, version } =
-      msg.payload ?? {};
+    const { bot_id, license_key, connection_password_proof, version } = msg.payload ?? {};
 
     if (!bot_id || !license_key || !connection_password_proof || !version) {
       ws.close(4004, "AUTH_FAILED: missing fields");
@@ -243,20 +225,14 @@ export class RelayServer {
     }
 
     if (this.cfg.connectionSecret) {
-      if (
-        !verifyHmac(pending.nonce, this.cfg.connectionSecret, connection_password_proof)
-      ) {
+      if (!verifyHmac(pending.nonce, this.cfg.connectionSecret, connection_password_proof)) {
         logger.warn("Bot auth failed: bad HMAC proof", { bot_id });
         ws.close(4001, "AUTH_FAILED");
         return;
       }
     }
 
-    const licenseResult = await validateLicense(
-      license_key,
-      bot_id,
-      this.cfg.validateUrl,
-    );
+    const licenseResult = await validateLicense(license_key, bot_id, this.cfg.validateUrl);
 
     if (!licenseResult.valid || !licenseResult.account_id) {
       logger.warn("Bot auth failed: invalid license", {
@@ -304,7 +280,7 @@ export class RelayServer {
 
   private handleRpcResponse(
     botId: string,
-    msg: Envelope<"rpc_response", RpcResponsePayload>,
+    msg: Envelope<"rpc_response", RpcResponsePayload>
   ): void {
     const resolved = this.routing.resolvePending(msg.id, msg.payload);
     if (!resolved) {
@@ -317,10 +293,7 @@ export class RelayServer {
 
   // ─── Web client connection handler ──────────────────────────────────────────
 
-  private handleWebConnection(
-    ws: WebSocket,
-    req: { url?: string },
-  ): void {
+  private handleWebConnection(ws: WebSocket, req: { url?: string }): void {
     const token = extractQueryParam(req.url ?? "", "token");
     const accountId = this.verifyWebToken(token);
 
@@ -364,7 +337,7 @@ export class RelayServer {
     ws: WebSocket,
     raw: string,
     client: WebClientRecord,
-    subscribedBots: Set<string>,
+    subscribedBots: Set<string>
   ): void {
     let msg: WebToRelayMessage;
     try {
@@ -438,14 +411,11 @@ export class RelayServer {
             payload: { error: { code: "RPC_FAILED", message: err.message } },
           });
         }
-      },
+      }
     );
   }
 
-  private broadcastToWebClients(
-    botId: string,
-    msg: RelayToWebMessage,
-  ): void {
+  private broadcastToWebClients(botId: string, msg: RelayToWebMessage): void {
     const subs = this.routing.getSubscribers(botId);
     for (const client of subs) {
       if (client.ws.readyState === WebSocket.OPEN) {
@@ -471,8 +441,7 @@ export class RelayServer {
 
   private startHeartbeat(): void {
     this.pingInterval = setInterval(() => {
-      const staleThreshold =
-        Date.now() - this.cfg.pingIntervalMs - this.cfg.heartbeatTimeoutMs;
+      const staleThreshold = Date.now() - this.cfg.pingIntervalMs - this.cfg.heartbeatTimeoutMs;
 
       for (const ws of this.botWss.clients) {
         if (ws.readyState === WebSocket.OPEN) {
@@ -503,13 +472,10 @@ export class RelayServer {
         const port = typeof addr === "object" && addr ? addr.port : this.cfg.port;
         logger.info(`Relay listening on port ${port}`);
         this.startHeartbeat();
-        this.cleanupInterval = setInterval(
-          () => {
-            this.botRateLimiter.cleanup();
-            this.webRateLimiter.cleanup();
-          },
-          5 * 60_000,
-        );
+        this.cleanupInterval = setInterval(() => {
+          this.botRateLimiter.cleanup();
+          this.webRateLimiter.cleanup();
+        }, 5 * 60_000);
         resolve();
       });
     });
