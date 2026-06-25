@@ -1,42 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
-import { randomUUID } from "crypto";
-import { getDb } from "@/lib/db";
+import { prisma } from "@/lib/db";
+import { getLicenseDb } from "@/lib/license-db";
 import { createLicenseRepository } from "@/lib/license";
 import { sendLicenseEmail } from "@/lib/email";
+import { Resend } from "resend";
 
 const DOWNLOAD_URL =
   process.env.BOT_DOWNLOAD_URL ?? "https://download.quickstockbot.com/bot/latest"; // stubbed until Section 16
 
-/** POST /api/licenses — issue a license for a user and send the delivery email. */
+/** POST /api/licenses — issue a license for a verified subscriber and email it. */
 export async function POST(req: NextRequest) {
   try {
-    const body = (await req.json()) as {
-      userId?: string;
-      email?: string;
-      name?: string;
-    };
-    const { userId, email, name } = body;
+    const body = (await req.json()) as { userId?: string; email?: string };
+    const { userId, email } = body;
 
-    if (!email) {
-      return NextResponse.json({ error: "email is required" }, { status: 400 });
+    if (!email && !userId) {
+      return NextResponse.json({ error: "email or userId is required" }, { status: 400 });
     }
 
-    const db = getDb();
-    const repo = createLicenseRepository(db);
+    // Look up the Prisma user
+    const user = await prisma.user.findUnique({
+      where: email ? { email } : { id: userId! },
+    });
 
-    let user = repo.getUserByEmail(email);
     if (!user) {
-      const id = userId ?? randomUUID();
-      user = repo.createUser(id, email, name);
+      return NextResponse.json({ error: "user not found" }, { status: 404 });
     }
 
+    if (!user.emailVerified) {
+      return NextResponse.json({ error: "email not verified" }, { status: 403 });
+    }
+
+    const activeSub =
+      user.subscriptionStatus === "active" || user.subscriptionStatus === "trialing";
+    if (!activeSub) {
+      return NextResponse.json({ error: "no active subscription" }, { status: 403 });
+    }
+
+    const repo = createLicenseRepository(getLicenseDb());
     const license = repo.issueLicense(user.id);
 
-    const { Resend } = await import("resend");
-    const resend = new Resend(process.env.RESEND_API_KEY);
-    await sendLicenseEmail(resend, {
-      to: email,
-      name: user.name,
+    const resendClient = new Resend(process.env.RESEND_API_KEY);
+    await sendLicenseEmail(resendClient, {
+      to: user.email,
+      name: null,
       licenseKey: license.key,
       downloadUrl: DOWNLOAD_URL,
     });

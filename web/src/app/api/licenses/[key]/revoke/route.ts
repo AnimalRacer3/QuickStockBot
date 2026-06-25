@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getLicenseDb } from "@/lib/license-db";
 import { createLicenseRepository } from "@/lib/license";
 
 /** PATCH /api/licenses/:key/revoke — admin endpoint to revoke a license. */
@@ -13,7 +13,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ ke
   }
 
   const { key } = await params;
-  const repo = createLicenseRepository(getDb());
+  const repo = createLicenseRepository(getLicenseDb());
   const revoked = repo.revokeLicense(key);
 
   if (!revoked) {

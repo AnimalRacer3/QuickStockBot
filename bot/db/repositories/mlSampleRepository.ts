@@ -78,4 +78,19 @@ export class MlSampleRepository {
       .all(tradeId) as MlSampleRow[];
     return rows.map((r) => this.toModel(r));
   }
+
+  /** Return all samples that have been labeled (label IS NOT NULL). */
+  getLabeled(): MlSample[] {
+    const rows = this.db
+      .prepare('SELECT * FROM ml_samples WHERE label IS NOT NULL ORDER BY sampled_at ASC')
+      .all() as MlSampleRow[];
+    return rows.map((r) => this.toModel(r));
+  }
+
+  /** Update the model_version field on samples linked to a given trade. */
+  setModelVersion(tradeId: string, modelVersion: string): void {
+    this.db
+      .prepare('UPDATE ml_samples SET model_version = ? WHERE trade_id = ?')
+      .run(modelVersion, tradeId);
+  }
 }

@@ -1,3 +1,31 @@
+import { Resend } from "resend";
+
+const FROM = process.env.RESEND_FROM ?? "noreply@quickstockbot.com";
+const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+
+function getResend(): Resend {
+  return new Resend(process.env.RESEND_API_KEY);
+}
+
+// ── Auth email (Section 10) ───────────────────────────────────────────────────
+
+export async function sendVerificationEmail(email: string, token: string): Promise<void> {
+  const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${token}`;
+  await getResend().emails.send({
+    from: FROM,
+    to: email,
+    subject: "Verify your QuickStockBot account",
+    html: `
+      <h1>Welcome to QuickStockBot!</h1>
+      <p>Click the link below to verify your email and start your free 1-month trial:</p>
+      <p><a href="${verifyUrl}">${verifyUrl}</a></p>
+      <p>This link expires in 24 hours. If you didn't sign up, ignore this email.</p>
+    `,
+  });
+}
+
+// ── License delivery email (Section 12) ──────────────────────────────────────
+
 export interface LicenseEmailPayload {
   to: string;
   name: string | null;
@@ -88,7 +116,7 @@ export async function sendLicenseEmail(
   payload: LicenseEmailPayload
 ): Promise<EmailResult> {
   const { subject, html, text } = buildLicenseEmail(payload);
-  const from = process.env.EMAIL_FROM ?? "QuickStockBot <noreply@quickstockbot.com>";
+  const from = process.env.RESEND_FROM ?? "QuickStockBot <noreply@quickstockbot.com>";
 
   const { data, error } = await client.emails.send({
     from,

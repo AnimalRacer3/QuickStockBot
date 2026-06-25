@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect, beforeEach } from "vitest";
-import { createDb } from "../db";
+import { createDb } from "../license-db";
 import { generateLicenseKey, createLicenseRepository } from "../license";
 import type Database from "better-sqlite3";
 
@@ -28,7 +28,6 @@ describe("LicenseRepository", () => {
   beforeEach(() => {
     db = createDb(); // in-memory; fresh each test
     repo = createLicenseRepository(db);
-    repo.createUser(userId, "test@example.com", "Test User");
   });
 
   // ── issueLicense ───────────────────────────────────────────────────────
@@ -119,21 +118,6 @@ describe("LicenseRepository", () => {
       const k2 = repo.issueLicense(userId).key;
       repo.revokeLicense(k1);
       expect(repo.validateLicense(k2)).toBe("active");
-    });
-  });
-
-  // ── createUser / getUserByEmail ────────────────────────────────────────
-
-  describe("createUser / getUserByEmail", () => {
-    it("retrieves a user that was created", () => {
-      const user = repo.getUserByEmail("test@example.com");
-      expect(user).not.toBeNull();
-      expect(user!.id).toBe(userId);
-      expect(user!.name).toBe("Test User");
-    });
-
-    it("returns null for an unknown email", () => {
-      expect(repo.getUserByEmail("nobody@example.com")).toBeNull();
     });
   });
 });

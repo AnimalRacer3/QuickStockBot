@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getLicenseDb } from "@/lib/license-db";
 import { createLicenseRepository } from "@/lib/license";
 
 /** GET /api/licenses/validate?key=QSB-... — phone-home endpoint used by the bot. */
@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "key is required" }, { status: 400 });
   }
 
-  const repo = createLicenseRepository(getDb());
+  const repo = createLicenseRepository(getLicenseDb());
   const status = repo.validateLicense(key);
 
   if (status === null) {
