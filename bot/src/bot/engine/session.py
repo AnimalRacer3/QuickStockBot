@@ -19,13 +19,21 @@ from bot.engine.exits import (
     trail_off_per_candle,
     update_high_water_mark,
 )
-from bot.engine.gate import GateResult, check_entry_gate
-from bot.engine.sizing import SizingResult, compute_shares
-from bot.models import AccountSnapshot, Bar, Order, OrderSide, OrderStatus, OrderType, TimeInForce
+from bot.engine.gate import check_entry_gate
+from bot.engine.sizing import compute_shares
+from bot.models import (
+    AccountSnapshot,
+    Bar,
+    Order,
+    OrderSide,
+    OrderStatus,
+    OrderType,
+    TimeInForce,
+)
 from bot.ta.config import TAConfig
-from bot.ta.helpers import high_of_day, low_of_day, vwap
+from bot.ta.helpers import high_of_day, low_of_day
 from bot.ta.macd import classify_macd
-from bot.ta.models import MacdState, TickerTA
+from bot.ta.models import MacdState
 from bot.ta.patterns import run_enabled_patterns
 from bot.ta.scoring import compute_score
 
@@ -242,8 +250,6 @@ class ExecutionSession:
             price = float(bars[-1].close)
             hod = high_of_day(bars)
             lod = low_of_day(bars)
-            session_vwap = vwap(bars)
-
             _, ta = compute_score(
                 symbol=symbol,
                 has_news=False,
@@ -493,7 +499,6 @@ class ExecutionSession:
             pos = trade.position
             if pos.remaining_shares > 0:
                 signal = dump_exit(pos, reason)
-                bars = {}  # use entry_price as fallback
                 self._execute_exit(trade, signal, trade.entry_price)
         self._open_trades.clear()
         self._log(f"FLATTEN ALL: {reason}")

@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bot.engine.gate import (
-    GateResult,
     _has_higher_highs,
     _is_overextended,
     _macd_eligible_rising,

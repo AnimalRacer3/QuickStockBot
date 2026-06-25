@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bot.engine.exits import (
-    ExitSignal,
     OpenPosition,
     check_take_profit,
     check_trailing_stop,

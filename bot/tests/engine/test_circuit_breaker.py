@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from bot.engine.circuit_breaker import DailyAction, DailyState, check_daily_limits
 from bot.engine.config import ExecutionConfig
 

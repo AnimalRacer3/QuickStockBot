@@ -14,8 +14,6 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
-import pytest
-
 from bot.engine.config import ExecutionConfig
 from bot.engine.session import ExecutionSession
 from bot.models import OrderSide, OrderStatus
@@ -23,11 +21,9 @@ from bot.ta.config import TAConfig
 from tests.engine.conftest import (
     ConfigurableMarketClient,
     FakeClock,
-    make_accelerating_bars,
     make_breakout_bars,
     make_falling_bars,
     make_flat_bars,
-    make_rising_bars,
 )
 
 _SESSION_OPEN = datetime(2024, 6, 10, 13, 30, 0, tzinfo=timezone.utc)
@@ -40,9 +36,10 @@ _PAST_Z_HOUR = datetime(2024, 6, 10, 14, 31, 0, tzinfo=timezone.utc)  # 61 min a
 
 def _make_dummy_open_trade(symbol: str = "TSLA", shares: int = 10, entry: float = 100.0):
     """Inject a pre-existing open trade into a session."""
+    from uuid import uuid4
+
     from bot.engine.exits import OpenPosition
     from bot.engine.session import TradeRecord
-    from uuid import uuid4
     from bot.models import Order, OrderSide, OrderStatus, OrderType, TimeInForce
     order = Order(
         id=str(uuid4()), client_order_id=str(uuid4()), symbol=symbol,
@@ -768,7 +765,6 @@ class TestActiveTickers:
         )
         sess, client, _ = _session(cfg=cfg, conviction=1.0)
         sess.start_day()
-        accel = make_breakout_bars()
         bars_map = {s: make_breakout_bars(symbol=s) for s in ["A", "B", "C", "D", "E"]}
         result = sess.run_cycle(["A", "B", "C", "D", "E"], bars_map)
         # Only top-2 candidates evaluated → at most 2 trades
@@ -802,7 +798,7 @@ class TestStateAssertions:
         bars = make_breakout_bars()
         sess.run_cycle(["AAPL"], {"AAPL": bars})
         if sess._open_trades:
-            result = sess.end_day()
+            sess.end_day()
             sells = [o for o in client.submitted_orders if o.side == OrderSide.SELL]
             assert len(sells) >= 1
             assert not sess._open_trades

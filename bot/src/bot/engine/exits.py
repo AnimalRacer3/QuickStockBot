@@ -3,7 +3,6 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, field
 
-from bot.models import Bar
 from bot.ta.models import MacdState
 
 
