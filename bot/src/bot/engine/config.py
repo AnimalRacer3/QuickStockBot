@@ -24,6 +24,10 @@ class ExecutionConfig:
     flatten_on_max_loss: bool = True
     flatten_on_profit_target: bool = False
 
+    # Daily giveback mode (Section 18)
+    daily_target_mode: Literal["stop", "giveback"] = "giveback"
+    daily_giveback_pct: float = 25.0  # % given back from peak that ends the day
+
     # Exit mode
     exit_mode: Literal["dump", "trail_off"] = "dump"
     trail_off_trigger: Literal["per_candle", "candle_pattern"] = "per_candle"

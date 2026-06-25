@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRelay } from "@/lib/relay-context";
 import { RiskSizingControl } from "@/components/settings/RiskSizingControl";
-import type { BotSettings } from "@/lib/types";
+import type { BotSettings, DailyTargetMode } from "@/lib/types";
 
 const ALL_PATTERNS = [
   "bullish_engulfing",
@@ -39,6 +39,8 @@ export const DEFAULT_SETTINGS: BotSettings = {
   override_risk_per_trade: false,
   flatten_on_daily_loss: true,
   flatten_on_daily_profit: false,
+  daily_target_mode: "giveback",
+  daily_giveback_pct: 25.0,
   exit_mode: "dump",
   stop_loss_pct: 2.0,
   take_profit_pct: 4.0,
@@ -304,6 +306,33 @@ export default function SettingsPageInner() {
       {/* Risk & Daily Limits */}
       <section>
         <h2 style={sectionTitleStyle}>Risk & Daily Limits</h2>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>Daily Target Mode</div>
+          <div style={{ display: "flex", gap: 12 }}>
+            {(["stop", "giveback"] as const).map((mode) => (
+              <label
+                key={mode}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  color: "#d1d5db",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="daily_target_mode"
+                  value={mode}
+                  checked={settings.daily_target_mode === mode}
+                  onChange={() => set("daily_target_mode", mode as DailyTargetMode)}
+                />
+                {mode === "stop" ? "Stop (hard stop at target)" : "Giveback (trail from peak)"}
+              </label>
+            ))}
+          </div>
+        </div>
         <div style={gridStyle}>
           <Field label="Daily Max Loss (%)">
             <input
@@ -314,7 +343,13 @@ export default function SettingsPageInner() {
               style={inputStyle}
             />
           </Field>
-          <Field label="Daily Profit Target (%)">
+          <Field
+            label={
+              settings.daily_target_mode === "giveback"
+                ? "Giveback Activation Threshold (%)"
+                : "Daily Profit Target (%)"
+            }
+          >
             <input
               type="number"
               step="0.5"
@@ -323,6 +358,19 @@ export default function SettingsPageInner() {
               style={inputStyle}
             />
           </Field>
+          {settings.daily_target_mode === "giveback" && (
+            <Field label="Giveback % from Peak">
+              <input
+                type="number"
+                step="1"
+                min="1"
+                max="100"
+                value={settings.daily_giveback_pct}
+                onChange={(e) => set("daily_giveback_pct", parseFloat(e.target.value))}
+                style={inputStyle}
+              />
+            </Field>
+          )}
         </div>
         <div style={{ display: "flex", gap: 24, margin: "12px 0" }}>
           <ToggleField
@@ -330,11 +378,13 @@ export default function SettingsPageInner() {
             checked={settings.flatten_on_daily_loss}
             onChange={(v) => set("flatten_on_daily_loss", v)}
           />
-          <ToggleField
-            label="Flatten on Daily Profit"
-            checked={settings.flatten_on_daily_profit}
-            onChange={(v) => set("flatten_on_daily_profit", v)}
-          />
+          {settings.daily_target_mode === "stop" && (
+            <ToggleField
+              label="Flatten on Daily Profit"
+              checked={settings.flatten_on_daily_profit}
+              onChange={(v) => set("flatten_on_daily_profit", v)}
+            />
+          )}
         </div>
         <div style={{ maxWidth: 360 }}>
           <RiskSizingControl

@@ -29,6 +29,8 @@ const mockSettings: BotSettings = {
   override_risk_per_trade: false,
   flatten_on_daily_loss: true,
   flatten_on_daily_profit: false,
+  daily_target_mode: "giveback",
+  daily_giveback_pct: 25.0,
   exit_mode: "dump",
   stop_loss_pct: 2.0,
   take_profit_pct: 4.0,
@@ -142,6 +144,64 @@ describe("Settings round-trip", () => {
       expect(client.updateSettings).toHaveBeenCalled();
       const patch = client.updateSettings.mock.calls[0][0] as BotSettings;
       expect(patch.include_unknown_float).toBe(false);
+    });
+  });
+
+  // Section 18: giveback mode UI tests
+  it("giveback mode shows daily_giveback_pct field", async () => {
+    const client = buildMockClient({ ...mockSettings, daily_target_mode: "giveback" });
+    renderWithClient(client);
+    await waitFor(() => expect(client.getSettings).toHaveBeenCalled());
+
+    expect(screen.getByText("Giveback % from Peak")).toBeDefined();
+  });
+
+  it("giveback mode shows activation threshold label instead of profit target", async () => {
+    const client = buildMockClient({ ...mockSettings, daily_target_mode: "giveback" });
+    renderWithClient(client);
+    await waitFor(() => expect(client.getSettings).toHaveBeenCalled());
+
+    expect(screen.getByText("Giveback Activation Threshold (%)")).toBeDefined();
+    expect(screen.queryByText("Daily Profit Target (%)")).toBeNull();
+  });
+
+  it("stop mode hides giveback_pct field and shows flatten_on_daily_profit", async () => {
+    const client = buildMockClient({ ...mockSettings, daily_target_mode: "stop" });
+    renderWithClient(client);
+    await waitFor(() => expect(client.getSettings).toHaveBeenCalled());
+
+    expect(screen.queryByText("Giveback % from Peak")).toBeNull();
+    expect(screen.getByText("Flatten on Daily Profit")).toBeDefined();
+  });
+
+  it("switching to giveback mode hides flatten_on_daily_profit toggle", async () => {
+    // Start in stop mode, then switch to giveback
+    const client = buildMockClient({ ...mockSettings, daily_target_mode: "stop" });
+    renderWithClient(client);
+    await waitFor(() => expect(client.getSettings).toHaveBeenCalled());
+
+    // Switch to giveback
+    const givebackRadio = screen.getByDisplayValue("giveback");
+    fireEvent.click(givebackRadio);
+
+    expect(screen.queryByText("Flatten on Daily Profit")).toBeNull();
+    expect(screen.getByText("Giveback % from Peak")).toBeDefined();
+  });
+
+  it("switching to giveback and saving includes daily_target_mode and daily_giveback_pct", async () => {
+    const client = buildMockClient({ ...mockSettings, daily_target_mode: "stop" });
+    renderWithClient(client);
+    await waitFor(() => expect(client.getSettings).toHaveBeenCalled());
+
+    const givebackRadio = screen.getByDisplayValue("giveback");
+    fireEvent.click(givebackRadio);
+
+    fireEvent.click(screen.getByText("Save Settings"));
+    await waitFor(() => {
+      expect(client.updateSettings).toHaveBeenCalled();
+      const patch = client.updateSettings.mock.calls[0][0] as BotSettings;
+      expect(patch.daily_target_mode).toBe("giveback");
+      expect(patch.daily_giveback_pct).toBe(25.0);
     });
   });
 });

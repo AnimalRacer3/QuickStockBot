@@ -62,7 +62,7 @@ _STR_FIELDS = frozenset(
 )
 _BOOL_FIELDS = frozenset({"paper_trading", "auto_trade", "risk_override_enabled"})
 _INT_FIELDS = frozenset({"max_positions", "macd_fast", "macd_slow", "macd_signal"})
-_FLOAT_FIELDS = frozenset({"risk_per_trade_pct", "daily_risk_pct", "min_score"})
+_FLOAT_FIELDS = frozenset({"risk_per_trade_pct", "daily_risk_pct", "min_score", "daily_giveback_pct"})
 _LIST_FIELDS = frozenset({"watchlist", "blacklist"})
 
 
@@ -102,6 +102,9 @@ def _build_settings_response(raw: dict[str, str | None]) -> dict[str, Any]:
         "macd_slow": dbmod.coerce_int(raw.get("macd_slow"), 26),
         "macd_signal": dbmod.coerce_int(raw.get("macd_signal"), 9),
         "log_level": raw.get("log_level") or "info",
+        # Section 18 — giveback exit mode
+        "daily_target_mode": raw.get("daily_target_mode") or "giveback",
+        "daily_giveback_pct": dbmod.coerce_float(raw.get("daily_giveback_pct"), 25.0),
     }
 
 
