@@ -1,4 +1,4 @@
-import type { DailyPL, ExtendedTickerState, BotSettings, TradeDetail, TradeRow } from "./types";
+import type { DailyPL, ExtendedTickerState, BotSettings, TradeDetail } from "./types";
 
 export type ConnectionState = "disconnected" | "connecting" | "connected" | "error";
 
@@ -60,7 +60,7 @@ export class RelayClient {
       let ws: WebSocket;
       try {
         ws = new WebSocket(relayUrl);
-      } catch (e) {
+      } catch {
         this.setConnectionState("error");
         reject(new Error("Failed to create WebSocket"));
         return;

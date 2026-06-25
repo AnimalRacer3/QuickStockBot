@@ -1,7 +1,5 @@
 // Global test setup for vitest/jsdom environment.
-// Add polyfills or global mocks here that all tests need.
-
-// next/navigation mocks (used by Nav and connect page)
+import React from "react";
 import { vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
@@ -11,8 +9,6 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next/link", () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => {
-    const React = require("react");
-    return React.createElement("a", { href }, children);
-  },
+  default: ({ children, href }: { children: React.ReactNode; href: string }) =>
+    React.createElement("a", { href }, children),
 }));

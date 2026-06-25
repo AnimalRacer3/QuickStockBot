@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRelay } from "@/lib/relay-context";
 import type { ExtendedTickerState } from "@/lib/types";
 
@@ -96,9 +97,9 @@ export default function TickerDetailPage({ params }: { params: { symbol: string 
   return (
     <div style={{ maxWidth: 640 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-        <a href="/tickers" style={{ color: "#6b7280", textDecoration: "none", fontSize: 13 }}>
+        <Link href="/tickers" style={{ color: "#6b7280", textDecoration: "none", fontSize: 13 }}>
           ← Active Tickers
-        </a>
+        </Link>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>{ticker.symbol}</h1>
         {ticker.unknown_float && (
           <span
