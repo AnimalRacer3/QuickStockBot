@@ -19,7 +19,6 @@ import pytest
 from bot.control.handlers import handle_get_state, handle_update_settings
 from bot.license.validator import (
     GRACE_PERIOD_SECONDS,
-    LicenseStatus,
     LicenseValidator,
 )
 
