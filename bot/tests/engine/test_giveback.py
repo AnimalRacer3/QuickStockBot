@@ -10,7 +10,6 @@ fixtures from conftest.
 from __future__ import annotations
 
 import pytest
-
 from bot.engine.circuit_breaker import DailyAction, DailyState, check_daily_limits
 from bot.engine.config import ExecutionConfig
 
@@ -413,7 +412,6 @@ class TestInteractions:
 class TestGivebackSettingsHandlers:
     def test_default_daily_target_mode_is_giveback(self) -> None:
         import sqlite3
-        import time
 
         from bot.control.handlers import handle_get_settings
 
@@ -433,7 +431,7 @@ class TestGivebackSettingsHandlers:
     def test_update_daily_target_mode(self) -> None:
         import sqlite3
 
-        from bot.control.handlers import handle_get_settings, handle_update_settings
+        from bot.control.handlers import handle_update_settings
 
         conn = sqlite3.connect(":memory:", check_same_thread=False)
         conn.row_factory = sqlite3.Row

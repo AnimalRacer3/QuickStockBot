@@ -33,6 +33,8 @@ const MOCK_SETTINGS: BotSettings = {
   override_risk_per_trade: false,
   flatten_on_daily_loss: true,
   flatten_on_daily_profit: false,
+  daily_target_mode: "giveback",
+  daily_giveback_pct: 25.0,
   exit_mode: "dump",
   stop_loss_pct: 2.0,
   take_profit_pct: 4.0,
