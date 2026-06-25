@@ -5,7 +5,7 @@ from decimal import Decimal
 from typing import Optional
 from uuid import uuid4
 
-from bot.alpaca.client import MarketClient
+from bot.alpaca.client import CalendarDay, ClockInfo, MarketClient
 from bot.models import (
     AccountSnapshot,
     Asset,
@@ -91,6 +91,17 @@ class ConfigurableMarketClient(MarketClient):
             day_trade_count=0,
             day_trading_buying_power=Decimal(str(self.day_trading_buying_power)),
             is_pdt_restricted=self.is_pdt_restricted,
+        )
+
+    def get_calendar(self, start: str, end: str) -> list[CalendarDay]:
+        return []
+
+    def get_clock(self) -> ClockInfo:
+        return ClockInfo(
+            timestamp="2024-06-10T14:30:00Z",
+            is_open=True,
+            next_open="2024-06-11T13:30:00Z",
+            next_close="2024-06-10T20:00:00Z",
         )
 
     def get_bars(
