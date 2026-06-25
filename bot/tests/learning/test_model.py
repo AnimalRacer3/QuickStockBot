@@ -18,7 +18,6 @@ from bot.learning.model import (
 from bot.scanner.models import TickerState
 from bot.ta.models import MacdState
 
-
 # ---------------------------------------------------------------------------
 # Synthetic dataset helpers
 # ---------------------------------------------------------------------------

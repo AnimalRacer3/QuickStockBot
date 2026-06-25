@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
@@ -80,22 +80,22 @@ class Trainer:
         if len(samples) != len(labels):
             raise ValueError("samples and labels must have the same length")
 
-        X = np.array([features_to_vector(s) for s in samples], dtype=np.float64)
+        x_mat = np.array([features_to_vector(s) for s in samples], dtype=np.float64)
         y = np.array(labels, dtype=np.int32)
 
         estimator = self._build_estimator(random_state)
 
         # Split only when we have enough data for a meaningful eval set
         if len(samples) >= 10:
-            X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=test_size, random_state=random_state, stratify=y
+            x_train, x_test, y_train, y_test = train_test_split(
+                x_mat, y, test_size=test_size, random_state=random_state, stratify=y
             )
         else:
-            X_train, X_test, y_train, y_test = X, X, y, y
+            x_train, x_test, y_train, y_test = x_mat, x_mat, y, y
 
-        estimator.fit(X_train, y_train)
+        estimator.fit(x_train, y_train)
 
-        y_prob = estimator.predict_proba(X_test)[:, 1]
+        y_prob = estimator.predict_proba(x_test)[:, 1]
         y_pred = (y_prob >= 0.5).astype(np.int32)
 
         try:
