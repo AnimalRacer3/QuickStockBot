@@ -160,6 +160,7 @@ class TestGoalPost:
 # EfficiencyTuner — tune / simulate_threshold
 # ---------------------------------------------------------------------------
 
+
 def _make_day_records(n_days: int = 10) -> list[TradeRecord]:
     """Synthetic dataset: each day has 4 low-conviction trades (+0.4% each)
     and 1 high-conviction trade (+2.5%).
@@ -178,7 +179,9 @@ def _make_day_records(n_days: int = 10) -> list[TradeRecord]:
         date = f"2024-01-{day + 1:02d}"
         # 4 low-conviction trades at +0.5% each
         for _ in range(4):
-            records.append(TradeRecord(date=date, net_pnl_pct=0.5, conviction_score=0.3))
+            records.append(
+                TradeRecord(date=date, net_pnl_pct=0.5, conviction_score=0.3)
+            )
         # 1 high-conviction trade at +2.5%
         records.append(TradeRecord(date=date, net_pnl_pct=2.5, conviction_score=0.9))
     return records
@@ -188,7 +191,9 @@ class TestEfficiencyTuner:
     def test_simulate_threshold_all_trades(self):
         records = _make_day_records(n_days=5)
         tuner = EfficiencyTuner()
-        result = tuner.simulate_threshold(records, threshold=0.0, daily_profit_target_pct=2.0)
+        result = tuner.simulate_threshold(
+            records, threshold=0.0, daily_profit_target_pct=2.0
+        )
 
         # 4 low-conv at 0.5% = 2.0% reached at 4th trade
         assert result.avg_trades_to_goal == pytest.approx(4.0)
@@ -198,7 +203,9 @@ class TestEfficiencyTuner:
     def test_simulate_threshold_high_conviction_only(self):
         records = _make_day_records(n_days=5)
         tuner = EfficiencyTuner()
-        result = tuner.simulate_threshold(records, threshold=0.8, daily_profit_target_pct=2.0)
+        result = tuner.simulate_threshold(
+            records, threshold=0.8, daily_profit_target_pct=2.0
+        )
 
         # Only the high-conv trade at +2.5% → target reached at trade 1
         assert result.avg_trades_to_goal == pytest.approx(1.0)
@@ -223,7 +230,9 @@ class TestEfficiencyTuner:
         records = _make_day_records(n_days=10)
         tuner = EfficiencyTuner()
 
-        base = tuner.simulate_threshold(records, threshold=0.0, daily_profit_target_pct=2.0)
+        base = tuner.simulate_threshold(
+            records, threshold=0.0, daily_profit_target_pct=2.0
+        )
         report = tuner.tune(
             records,
             candidate_thresholds=[0.0, 0.5, 0.8, 0.95],
@@ -256,7 +265,9 @@ class TestEfficiencyTuner:
         records = _make_day_records(n_days=3)
         tuner = EfficiencyTuner()
         # threshold > 0.9 (max conviction in records) → no trades
-        result = tuner.simulate_threshold(records, threshold=0.99, daily_profit_target_pct=2.0)
+        result = tuner.simulate_threshold(
+            records, threshold=0.99, daily_profit_target_pct=2.0
+        )
         assert result.days_with_trades == 0
         assert result.hit_rate == pytest.approx(0.0)
         assert math.isinf(result.avg_trades_to_goal)

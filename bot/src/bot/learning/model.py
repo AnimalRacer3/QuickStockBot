@@ -35,10 +35,10 @@ class TrainingMetrics:
 class ModelVersion:
     """A trained, versioned model."""
 
-    version: str          # e.g. "v1717200000"
-    model: Any            # sklearn estimator
+    version: str  # e.g. "v1717200000"
+    model: Any  # sklearn estimator
     metrics: TrainingMetrics
-    trained_at: int       # unix timestamp
+    trained_at: int  # unix timestamp
 
 
 # ---------------------------------------------------------------------------

@@ -116,14 +116,22 @@ def _good_features() -> dict[str, float]:
     state = _make_ticker_state(
         rvol=6.0, macd_eligible=True, macd_favorability=0.9, role="leader", score=90.0
     )
-    return extract_features(state, sentiment_score=0.8, time_of_day_frac=0.1, sizing=1000.0)
+    return extract_features(
+        state, sentiment_score=0.8, time_of_day_frac=0.1, sizing=1000.0
+    )
 
 
 def _bad_features() -> dict[str, float]:
     state = _make_ticker_state(
-        rvol=0.8, macd_eligible=False, macd_favorability=-0.7, role="laggard", score=15.0
+        rvol=0.8,
+        macd_eligible=False,
+        macd_favorability=-0.7,
+        role="laggard",
+        score=15.0,
     )
-    return extract_features(state, sentiment_score=-0.6, time_of_day_frac=0.9, sizing=100.0)
+    return extract_features(
+        state, sentiment_score=-0.6, time_of_day_frac=0.9, sizing=100.0
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +206,9 @@ class TestScorer:
         samples, labels = _make_synthetic_dataset()
         mv = Trainer().train(samples, labels)
         scorer = Scorer(mv)
-        assert scorer.score_setup(_good_features()) > scorer.score_setup(_bad_features())
+        assert scorer.score_setup(_good_features()) > scorer.score_setup(
+            _bad_features()
+        )
 
     def test_scorer_version_matches_model_version(self):
         samples, labels = _make_synthetic_dataset(n_good=30, n_bad=30)

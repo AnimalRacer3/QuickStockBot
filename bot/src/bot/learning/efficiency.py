@@ -11,7 +11,7 @@ from typing import Optional
 class DailyEfficiencyRecord:
     """Summary of a single trading day's efficiency."""
 
-    date: str          # YYYY-MM-DD
+    date: str  # YYYY-MM-DD
     trades_to_goal: int
     goal_reached: bool
     daily_pnl_pct: float
@@ -21,8 +21,8 @@ class DailyEfficiencyRecord:
 class TradeRecord:
     """A single completed round-trip for efficiency analysis."""
 
-    date: str                # YYYY-MM-DD
-    net_pnl_pct: float       # net P&L as % of account/portfolio
+    date: str  # YYYY-MM-DD
+    net_pnl_pct: float  # net P&L as % of account/portfolio
     conviction_score: float  # ML score at the time of entry (0..1)
 
 
@@ -30,7 +30,7 @@ class TradeRecord:
 class ThresholdResult:
     threshold: float
     avg_trades_to_goal: float
-    hit_rate: float        # fraction of days where daily_profit_target_pct was reached
+    hit_rate: float  # fraction of days where daily_profit_target_pct was reached
     days_with_trades: int
 
 
@@ -163,7 +163,9 @@ class EfficiencyTuner:
         ]
 
         # Primary: meets min_hit_rate, minimise avg_trades_to_goal
-        eligible = [r for r in results if r.hit_rate >= min_hit_rate and r.days_with_trades > 0]
+        eligible = [
+            r for r in results if r.hit_rate >= min_hit_rate and r.days_with_trades > 0
+        ]
         if eligible:
             best = min(eligible, key=lambda r: r.avg_trades_to_goal)
         else:
@@ -171,11 +173,17 @@ class EfficiencyTuner:
             with_trades = [r for r in results if r.days_with_trades > 0]
             if not with_trades:
                 # No trades survive any threshold — return lowest threshold
-                best = results[0] if results else ThresholdResult(
-                    threshold=candidate_thresholds[0] if candidate_thresholds else 0.5,
-                    avg_trades_to_goal=float("inf"),
-                    hit_rate=0.0,
-                    days_with_trades=0,
+                best = (
+                    results[0]
+                    if results
+                    else ThresholdResult(
+                        threshold=candidate_thresholds[0]
+                        if candidate_thresholds
+                        else 0.5,
+                        avg_trades_to_goal=float("inf"),
+                        hit_rate=0.0,
+                        days_with_trades=0,
+                    )
                 )
             else:
                 best = max(with_trades, key=lambda r: r.hit_rate)

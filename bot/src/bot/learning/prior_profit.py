@@ -72,6 +72,7 @@ class PriorProfitTracker:
         The scanner uses this to bias the score of repeatedly profitable symbols.
         Returns the cumulative P&L for symbols with history, None otherwise.
         """
+
         def lookup(symbol: str) -> Optional[float]:
             stats = self._stats.get(symbol)
             return stats.cumulative_pnl if stats is not None else None
