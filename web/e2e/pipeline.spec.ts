@@ -36,7 +36,7 @@ test.describe("Pipeline — full bot → relay → dashboard flow", () => {
     const logRegion = page.getByRole("log");
     await expect(logRegion).toBeVisible();
     // The mock relay sends "scanner idle" after subscribe_logs and also via web_auth pipeline
-    await expect(page.getByText(/scanner idle/i)).toBeVisible({ timeout: 8000 });
+    await expect(page.getByRole("log").getByText(/scanner idle/i)).toBeVisible({ timeout: 8000 });
   });
 
   test("scanner pass surfaces unknown-float ticker and tradable leader", async ({ page }) => {
@@ -88,7 +88,7 @@ test.describe("Pipeline — full bot → relay → dashboard flow", () => {
 
     await page.getByRole("link", { name: "Trade History" }).click();
     await page.waitForURL("**/history", { timeout: 5000 });
-    await expect(page.getByText("AAPL")).toBeVisible({ timeout: 8000 });
+    await expect(page.getByText("AAPL").first()).toBeVisible({ timeout: 8000 });
 
     // trade-003 has net_pl = 75.00; click that row to open the detail view
     const trailRow = page.locator("tr").filter({ hasText: "75.00" }).first();
@@ -136,7 +136,7 @@ test.describe("Pipeline — full bot → relay → dashboard flow", () => {
     // Click to open the day detail and verify trades are listed
     await profitDay.click();
     await expect(page.getByText("2024-03-05")).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("AAPL")).toBeVisible();
+    await expect(page.getByText("AAPL").first()).toBeVisible();
   });
 
   test("settings change — switch exit_mode to trail_off and save", async ({ page }) => {
@@ -147,7 +147,7 @@ test.describe("Pipeline — full bot → relay → dashboard flow", () => {
     await page.waitForURL("**/settings", { timeout: 5000 });
     await expect(page.getByText("Exit Mode")).toBeVisible({ timeout: 10_000 });
 
-    await page.locator("label", { hasText: "Trail Off" }).click();
+    await page.locator("label", { hasText: /^Trail Off$/ }).click();
     await expect(page.getByText("Trail Off Trigger (%)")).toBeVisible();
 
     await page.getByRole("button", { name: "Save Settings" }).click();
