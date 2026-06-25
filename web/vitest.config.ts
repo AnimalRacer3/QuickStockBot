@@ -6,6 +6,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "jsdom",
+    environmentMatchGlobs: [
+      // library / server-side tests use Node (no DOM needed, native modules)
+      ["src/lib/**/*.test.ts", "node"],
+    ],
     include: ["src/**/*.test.{ts,tsx}"],
   },
 });
