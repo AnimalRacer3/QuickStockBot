@@ -127,7 +127,9 @@ class TestActiveStatus:
 
 class TestRevokedStatus:
     def test_revoked_within_grace_allows_trading(self, db: sqlite3.Connection) -> None:
-        _seed_last_valid(db, seconds_ago=1 * 24 * 3600)  # 1 day ago — within 30-day grace
+        _seed_last_valid(
+            db, seconds_ago=1 * 24 * 3600
+        )  # 1 day ago — within 30-day grace
         v = _make_validator(db, {"status": "revoked"})
         status = v.check_once()
         assert status.state == "revoked"
@@ -142,7 +144,9 @@ class TestRevokedStatus:
         assert status.trading_allowed is False
         assert "expired" in status.reason
 
-    def test_revoked_without_last_valid_stops_trading(self, db: sqlite3.Connection) -> None:
+    def test_revoked_without_last_valid_stops_trading(
+        self, db: sqlite3.Connection
+    ) -> None:
         # Never had a successful validation
         v = _make_validator(db, {"status": "revoked"})
         status = v.check_once()
@@ -175,7 +179,9 @@ class TestOfflineStatus:
         assert status.state == "offline"
         assert status.trading_allowed is False
 
-    def test_offline_no_prior_validation_stops_trading(self, db: sqlite3.Connection) -> None:
+    def test_offline_no_prior_validation_stops_trading(
+        self, db: sqlite3.Connection
+    ) -> None:
         v = _make_validator(db, httpx.ConnectError("network unreachable"))
         status = v.check_once()
         assert status.state == "offline"
@@ -317,17 +323,13 @@ class TestLiveModeConfirmation:
     def test_staying_in_paper_mode_does_not_require_confirmation(
         self, handler_db: sqlite3.Connection
     ) -> None:
-        result = handle_update_settings(
-            handler_db, {"patch": {"paper_trading": True}}
-        )
+        result = handle_update_settings(handler_db, {"patch": {"paper_trading": True}})
         assert result["paper_trading"] is True
 
     def test_other_settings_update_without_confirmation(
         self, handler_db: sqlite3.Connection
     ) -> None:
-        result = handle_update_settings(
-            handler_db, {"patch": {"max_positions": 3}}
-        )
+        result = handle_update_settings(handler_db, {"patch": {"max_positions": 3}})
         assert result["max_positions"] == 3
 
 
@@ -448,7 +450,10 @@ class TestNoticesInState:
         for key, value in [
             ("_license_cached_status", "revoked"),
             ("_license_trading_allowed", "false"),
-            ("_license_reason", "license revoked — grace period expired, trading stopped"),
+            (
+                "_license_reason",
+                "license revoked — grace period expired, trading stopped",
+            ),
         ]:
             handler_db.execute(
                 "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",

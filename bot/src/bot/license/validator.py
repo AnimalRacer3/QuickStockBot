@@ -39,7 +39,9 @@ class LicenseStatus:
     state: LicenseState
     trading_allowed: bool
     reason: str
-    last_valid_ts: float | None  # epoch seconds of last "active" response; None if never
+    last_valid_ts: (
+        float | None
+    )  # epoch seconds of last "active" response; None if never
 
 
 class LicenseValidator:
@@ -148,7 +150,10 @@ class LicenseValidator:
             )
 
         if server_status in ("revoked", "expired"):
-            if last_valid_ts is not None and (now - last_valid_ts) < GRACE_PERIOD_SECONDS:
+            if (
+                last_valid_ts is not None
+                and (now - last_valid_ts) < GRACE_PERIOD_SECONDS
+            ):
                 return LicenseStatus(
                     state="revoked",
                     trading_allowed=True,
