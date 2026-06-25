@@ -2,14 +2,16 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { RiskSizingControl } from "./RiskSizingControl";
 
-function setup(overrides: {
-  dailyPct?: number;
-  riskPct?: number;
-  overrideEnabled?: boolean;
-  onOverrideChange?: (v: boolean) => void;
-  onRiskChange?: (v: number) => void;
-  riskError?: string;
-} = {}) {
+function setup(
+  overrides: {
+    dailyPct?: number;
+    riskPct?: number;
+    overrideEnabled?: boolean;
+    onOverrideChange?: (v: boolean) => void;
+    onRiskChange?: (v: number) => void;
+    riskError?: string;
+  } = {}
+) {
   const props = {
     dailyPct: overrides.dailyPct ?? 5.0,
     riskPct: overrides.riskPct ?? 1.0,
@@ -79,7 +81,7 @@ describe("RiskSizingControl", () => {
         overrideEnabled={true}
         onOverrideChange={vi.fn()}
         onRiskChange={vi.fn()}
-      />,
+      />
     );
     const liveRegion = screen.getByText(/Goal: reach daily target/);
     expect(liveRegion.textContent).toContain("3");

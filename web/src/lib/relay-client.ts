@@ -39,7 +39,10 @@ function uuid(): string {
 
 export class RelayClient {
   private ws: WebSocket | null = null;
-  private pending = new Map<string, { resolve: (r: unknown) => void; reject: (e: Error) => void }>();
+  private pending = new Map<
+    string,
+    { resolve: (r: unknown) => void; reject: (e: Error) => void }
+  >();
   private logListeners = new Set<LogListener>();
   private stateListeners = new Set<StateListener>();
   private stateChangeListeners = new Set<StateChangeListener>();
@@ -88,7 +91,7 @@ export class RelayClient {
                 type: "web_auth",
                 id: msg.id,
                 payload: { password },
-              }),
+              })
             );
             break;
           }
@@ -167,7 +170,7 @@ export class RelayClient {
           type: "rpc_request",
           id,
           payload: { method, params: params ?? {} },
-        }),
+        })
       );
     });
   }
@@ -192,21 +195,21 @@ export class RelayClient {
     return this.rpc("get_lists");
   }
 
-  async updateLists(watchlist: string[], blacklist: string[]): Promise<{ watchlist: string[]; blacklist: string[] }> {
+  async updateLists(
+    watchlist: string[],
+    blacklist: string[]
+  ): Promise<{ watchlist: string[]; blacklist: string[] }> {
     return this.rpc("update_lists", { watchlist, blacklist });
   }
 
   async getTradeHistory(
     limit = 100,
-    offset = 0,
+    offset = 0
   ): Promise<{ trades: TradeDetail[]; total: number }> {
     return this.rpc("get_trade_history", { limit, offset });
   }
 
-  async getDailyPL(
-    year: number,
-    month: number,
-  ): Promise<{ days: DailyPL[] }> {
+  async getDailyPL(year: number, month: number): Promise<{ days: DailyPL[] }> {
     return this.rpc("get_daily_pl", { year, month });
   }
 

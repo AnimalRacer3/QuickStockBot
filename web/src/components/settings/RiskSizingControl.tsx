@@ -81,7 +81,16 @@ export function RiskSizingControl({
         </div>
       </div>
 
-      <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: "#9ca3af" }}>
+      <label
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          cursor: "pointer",
+          fontSize: 13,
+          color: "#9ca3af",
+        }}
+      >
         <input
           type="checkbox"
           checked={overrideEnabled}
@@ -94,9 +103,16 @@ export function RiskSizingControl({
 
       <div
         aria-live="polite"
-        style={{ fontSize: 12, color: "#6b7280", backgroundColor: "#111827", borderRadius: 6, padding: "6px 10px" }}
+        style={{
+          fontSize: 12,
+          color: "#6b7280",
+          backgroundColor: "#111827",
+          borderRadius: 6,
+          padding: "6px 10px",
+        }}
       >
-        Goal: reach daily target in ~<strong style={{ color: "#f9fafb" }}>{goalTrades}</strong> trades
+        Goal: reach daily target in ~<strong style={{ color: "#f9fafb" }}>{goalTrades}</strong>{" "}
+        trades
         {typeof goalTrades === "number" && (
           <span style={{ marginLeft: 6 }}>
             ({dailyPct.toFixed(1)}% ÷ {riskPct.toFixed(1)}%)

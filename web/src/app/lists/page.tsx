@@ -53,14 +53,25 @@ export default function ListsPage() {
   if (connectionState !== "connected") {
     return (
       <div style={{ color: "#9ca3af", textAlign: "center", marginTop: 80 }}>
-        Not connected. <a href="/connect" style={{ color: "#3b82f6" }}>Connect first</a>.
+        Not connected.{" "}
+        <a href="/connect" style={{ color: "#3b82f6" }}>
+          Connect first
+        </a>
+        .
       </div>
     );
   }
 
   return (
     <div style={{ maxWidth: 720 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 24,
+        }}
+      >
         <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Ticker Manager</h1>
         {savedMsg && <span style={{ color: "#34d399", fontSize: 13 }}>{savedMsg}</span>}
         {saving && <span style={{ color: "#9ca3af", fontSize: 13 }}>Saving…</span>}
@@ -90,7 +101,13 @@ export default function ListsPage() {
 }
 
 function SymbolList({
-  title, symbols, input, onInput, onAdd, onRemove, color
+  title,
+  symbols,
+  input,
+  onInput,
+  onAdd,
+  onRemove,
+  color,
 }: {
   title: string;
   symbols: string[];
@@ -102,7 +119,16 @@ function SymbolList({
 }) {
   return (
     <div>
-      <h2 style={{ fontSize: 13, fontWeight: 700, color, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>
+      <h2
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          color,
+          textTransform: "uppercase",
+          letterSpacing: "0.08em",
+          marginBottom: 12,
+        }}
+      >
         {title}
       </h2>
       <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
@@ -111,7 +137,12 @@ function SymbolList({
           value={input}
           onChange={(e) => onInput(e.target.value)}
           placeholder="AAPL"
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); onAdd(); } }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              onAdd();
+            }
+          }}
           style={{
             flex: 1,
             padding: "8px 10px",
@@ -172,7 +203,9 @@ function SymbolList({
           </div>
         ))}
         {symbols.length === 0 && (
-          <div style={{ color: "#374151", fontSize: 12, textAlign: "center", padding: 12 }}>Empty</div>
+          <div style={{ color: "#374151", fontSize: 12, textAlign: "center", padding: 12 }}>
+            Empty
+          </div>
         )}
       </div>
     </div>

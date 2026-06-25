@@ -19,7 +19,7 @@ function renderCalendar(overrides: Partial<DailyPL>[] = [], onDayClick = vi.fn()
       onDayClick={onDayClick}
       onPrevMonth={vi.fn()}
       onNextMonth={vi.fn()}
-    />,
+    />
   );
 }
 
@@ -82,13 +82,7 @@ describe("CalendarGrid", () => {
     const prevSpy = vi.fn();
     const nextSpy = vi.fn();
     render(
-      <CalendarGrid
-        year={2024}
-        month={3}
-        days={[]}
-        onPrevMonth={prevSpy}
-        onNextMonth={nextSpy}
-      />,
+      <CalendarGrid year={2024} month={3} days={[]} onPrevMonth={prevSpy} onNextMonth={nextSpy} />
     );
     fireEvent.click(screen.getByLabelText("Previous month"));
     expect(prevSpy).toHaveBeenCalled();

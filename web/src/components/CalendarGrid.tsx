@@ -11,19 +11,27 @@ function dayColor(day: DailyPL): string {
 
 function dayBg(color: string): string {
   switch (color) {
-    case "green": return "#14532d";
-    case "red": return "#450a0a";
-    case "blue": return "#1e3a5f";
-    default: return "transparent";
+    case "green":
+      return "#14532d";
+    case "red":
+      return "#450a0a";
+    case "blue":
+      return "#1e3a5f";
+    default:
+      return "transparent";
   }
 }
 
 function dayBorder(color: string): string {
   switch (color) {
-    case "green": return "#166534";
-    case "red": return "#7f1d1d";
-    case "blue": return "#1e40af";
-    default: return "transparent";
+    case "green":
+      return "#166534";
+    case "red":
+      return "#7f1d1d";
+    case "blue":
+      return "#1e40af";
+    default:
+      return "transparent";
   }
 }
 
@@ -52,7 +60,20 @@ interface Props {
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 export function CalendarGrid({ year, month, days, onDayClick, onPrevMonth, onNextMonth }: Props) {
   const dayMap = new Map(days.map((d) => [d.date, d]));
@@ -70,17 +91,32 @@ export function CalendarGrid({ year, month, days, onDayClick, onPrevMonth, onNex
     <div>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
-        <button onClick={onPrevMonth} aria-label="Previous month" style={navBtnStyle}>‹</button>
+        <button onClick={onPrevMonth} aria-label="Previous month" style={navBtnStyle}>
+          ‹
+        </button>
         <span style={{ fontSize: 18, fontWeight: 700, minWidth: 180, textAlign: "center" }}>
           {MONTHS[month - 1]} {year}
         </span>
-        <button onClick={onNextMonth} aria-label="Next month" style={navBtnStyle}>›</button>
+        <button onClick={onNextMonth} aria-label="Next month" style={navBtnStyle}>
+          ›
+        </button>
       </div>
 
       {/* Weekday labels */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}>
+      <div
+        style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 4 }}
+      >
         {WEEKDAYS.map((d) => (
-          <div key={d} style={{ textAlign: "center", fontSize: 11, color: "#4b5563", fontWeight: 700, padding: "4px 0" }}>
+          <div
+            key={d}
+            style={{
+              textAlign: "center",
+              fontSize: 11,
+              color: "#4b5563",
+              fontWeight: 700,
+              padding: "4px 0",
+            }}
+          >
             {d}
           </div>
         ))}
@@ -116,7 +152,13 @@ export function CalendarGrid({ year, month, days, onDayClick, onPrevMonth, onNex
                 transition: "opacity 0.1s",
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: pl ? 600 : 400, color: pl ? "#f9fafb" : "#374151" }}>
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: pl ? 600 : 400,
+                  color: pl ? "#f9fafb" : "#374151",
+                }}
+              >
                 {day}
               </span>
               {pl && (

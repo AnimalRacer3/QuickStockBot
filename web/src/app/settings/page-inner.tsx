@@ -90,7 +90,10 @@ export default function SettingsPageInner() {
   function togglePattern(p: string) {
     const current = settings.enabled_patterns;
     if (current.includes(p)) {
-      set("enabled_patterns", current.filter((x) => x !== p));
+      set(
+        "enabled_patterns",
+        current.filter((x) => x !== p)
+      );
     } else {
       set("enabled_patterns", [...current, p]);
     }
@@ -116,39 +119,101 @@ export default function SettingsPageInner() {
   if (loading) return <div style={{ color: "#9ca3af" }}>Loading settings…</div>;
 
   return (
-    <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: 32, maxWidth: 720 }}>
+    <form
+      onSubmit={handleSave}
+      style={{ display: "flex", flexDirection: "column", gap: 32, maxWidth: 720 }}
+    >
       {/* Scanner */}
       <section>
         <h2 style={sectionTitleStyle}>Scanner</h2>
         <div style={gridStyle}>
           <Field label="Pre-Open Lead (hours)">
-            <input type="number" step="0.5" value={settings.pre_open_lead_hours} onChange={(e) => set("pre_open_lead_hours", parseFloat(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="0.5"
+              value={settings.pre_open_lead_hours}
+              onChange={(e) => set("pre_open_lead_hours", parseFloat(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="Scan Duration (hours)">
-            <input type="number" step="0.5" value={settings.scan_duration_hours} onChange={(e) => set("scan_duration_hours", parseFloat(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="0.5"
+              value={settings.scan_duration_hours}
+              onChange={(e) => set("scan_duration_hours", parseFloat(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="Refresh Interval (sec)">
-            <input type="number" step="1" value={settings.scanner_refresh_seconds} onChange={(e) => set("scanner_refresh_seconds", parseInt(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="1"
+              value={settings.scanner_refresh_seconds}
+              onChange={(e) => set("scanner_refresh_seconds", parseInt(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="Min RVOL">
-            <input type="number" step="0.1" value={settings.relative_volume_min} onChange={(e) => set("relative_volume_min", parseFloat(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="0.1"
+              value={settings.relative_volume_min}
+              onChange={(e) => set("relative_volume_min", parseFloat(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="Gap Up Min (%)">
-            <input type="number" step="0.5" value={settings.gap_up_min_pct} onChange={(e) => set("gap_up_min_pct", parseFloat(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="0.5"
+              value={settings.gap_up_min_pct}
+              onChange={(e) => set("gap_up_min_pct", parseFloat(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="Max Float Shares">
-            <input type="number" step="1000000" value={settings.max_float_shares} onChange={(e) => set("max_float_shares", parseInt(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="1000000"
+              value={settings.max_float_shares}
+              onChange={(e) => set("max_float_shares", parseInt(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="Active Tickers (N)">
-            <input type="number" step="1" min="1" value={settings.active_tickers_n} onChange={(e) => set("active_tickers_n", parseInt(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="1"
+              min="1"
+              value={settings.active_tickers_n}
+              onChange={(e) => set("active_tickers_n", parseInt(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="Prior Profit Bias Weight">
-            <input type="number" step="0.1" min="0" max="1" value={settings.prior_profit_bias_weight} onChange={(e) => set("prior_profit_bias_weight", parseFloat(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="0.1"
+              min="0"
+              max="1"
+              value={settings.prior_profit_bias_weight}
+              onChange={(e) => set("prior_profit_bias_weight", parseFloat(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
         </div>
         <div style={{ display: "flex", gap: 24, marginTop: 12 }}>
-          <ToggleField label="Include Unknown Float" checked={settings.include_unknown_float} onChange={(v) => set("include_unknown_float", v)} />
-          <ToggleField label="Require News" checked={settings.require_news} onChange={(v) => set("require_news", v)} />
+          <ToggleField
+            label="Include Unknown Float"
+            checked={settings.include_unknown_float}
+            onChange={(v) => set("include_unknown_float", v)}
+          />
+          <ToggleField
+            label="Require News"
+            checked={settings.require_news}
+            onChange={(v) => set("require_news", v)}
+          />
         </div>
       </section>
 
@@ -159,7 +224,17 @@ export default function SettingsPageInner() {
           <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>Enabled Patterns</div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {ALL_PATTERNS.map((p) => (
-              <label key={p} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13, color: "#d1d5db" }}>
+              <label
+                key={p}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  color: "#d1d5db",
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={settings.enabled_patterns.includes(p)}
@@ -172,23 +247,57 @@ export default function SettingsPageInner() {
         </div>
         <div style={gridStyle}>
           <Field label="Pattern Candle Lookback">
-            <input type="number" step="1" value={settings.pattern_candle_lookback} onChange={(e) => set("pattern_candle_lookback", parseInt(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="1"
+              value={settings.pattern_candle_lookback}
+              onChange={(e) => set("pattern_candle_lookback", parseInt(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="MACD Fast">
-            <input type="number" step="1" value={settings.macd_fast} onChange={(e) => set("macd_fast", parseInt(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="1"
+              value={settings.macd_fast}
+              onChange={(e) => set("macd_fast", parseInt(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="MACD Slow">
-            <input type="number" step="1" value={settings.macd_slow} onChange={(e) => set("macd_slow", parseInt(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="1"
+              value={settings.macd_slow}
+              onChange={(e) => set("macd_slow", parseInt(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="MACD Signal">
-            <input type="number" step="1" value={settings.macd_signal} onChange={(e) => set("macd_signal", parseInt(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="1"
+              value={settings.macd_signal}
+              onChange={(e) => set("macd_signal", parseInt(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="MACD Slope Lookback">
-            <input type="number" step="1" value={settings.macd_slope_lookback} onChange={(e) => set("macd_slope_lookback", parseInt(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="1"
+              value={settings.macd_slope_lookback}
+              onChange={(e) => set("macd_slope_lookback", parseInt(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
         </div>
         <div style={{ marginTop: 12 }}>
-          <ToggleField label="Enforce MACD Above Zero" checked={settings.macd_enforce_above_zero} onChange={(v) => set("macd_enforce_above_zero", v)} />
+          <ToggleField
+            label="Enforce MACD Above Zero"
+            checked={settings.macd_enforce_above_zero}
+            onChange={(v) => set("macd_enforce_above_zero", v)}
+          />
         </div>
       </section>
 
@@ -197,15 +306,35 @@ export default function SettingsPageInner() {
         <h2 style={sectionTitleStyle}>Risk & Daily Limits</h2>
         <div style={gridStyle}>
           <Field label="Daily Max Loss (%)">
-            <input type="number" step="0.5" value={settings.daily_max_loss_pct} onChange={(e) => set("daily_max_loss_pct", parseFloat(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="0.5"
+              value={settings.daily_max_loss_pct}
+              onChange={(e) => set("daily_max_loss_pct", parseFloat(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="Daily Profit Target (%)">
-            <input type="number" step="0.5" value={settings.daily_profit_target_pct} onChange={(e) => set("daily_profit_target_pct", parseFloat(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="0.5"
+              value={settings.daily_profit_target_pct}
+              onChange={(e) => set("daily_profit_target_pct", parseFloat(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
         </div>
         <div style={{ display: "flex", gap: 24, margin: "12px 0" }}>
-          <ToggleField label="Flatten on Daily Loss" checked={settings.flatten_on_daily_loss} onChange={(v) => set("flatten_on_daily_loss", v)} />
-          <ToggleField label="Flatten on Daily Profit" checked={settings.flatten_on_daily_profit} onChange={(v) => set("flatten_on_daily_profit", v)} />
+          <ToggleField
+            label="Flatten on Daily Loss"
+            checked={settings.flatten_on_daily_loss}
+            onChange={(v) => set("flatten_on_daily_loss", v)}
+          />
+          <ToggleField
+            label="Flatten on Daily Profit"
+            checked={settings.flatten_on_daily_profit}
+            onChange={(v) => set("flatten_on_daily_profit", v)}
+          />
         </div>
         <div style={{ maxWidth: 360 }}>
           <RiskSizingControl
@@ -223,11 +352,29 @@ export default function SettingsPageInner() {
       <section>
         <h2 style={sectionTitleStyle}>Exits</h2>
         <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 13, color: "#d1d5db", display: "block", marginBottom: 6 }}>Exit Mode</label>
+          <label style={{ fontSize: 13, color: "#d1d5db", display: "block", marginBottom: 6 }}>
+            Exit Mode
+          </label>
           <div style={{ display: "flex", gap: 12 }}>
             {(["dump", "trail_off"] as const).map((mode) => (
-              <label key={mode} style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13, color: "#d1d5db" }}>
-                <input type="radio" name="exit_mode" value={mode} checked={settings.exit_mode === mode} onChange={() => set("exit_mode", mode)} />
+              <label
+                key={mode}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  cursor: "pointer",
+                  fontSize: 13,
+                  color: "#d1d5db",
+                }}
+              >
+                <input
+                  type="radio"
+                  name="exit_mode"
+                  value={mode}
+                  checked={settings.exit_mode === mode}
+                  onChange={() => set("exit_mode", mode)}
+                />
                 {mode === "dump" ? "Dump (immediate)" : "Trail Off"}
               </label>
             ))}
@@ -236,32 +383,75 @@ export default function SettingsPageInner() {
         {settings.exit_mode === "trail_off" && (
           <div style={{ ...gridStyle, marginBottom: 16 }}>
             <Field label="Trail Off Trigger (%)">
-              <input type="number" step="0.1" value={settings.trail_off_trigger ?? ""} onChange={(e) => set("trail_off_trigger", parseFloat(e.target.value))} style={inputStyle} />
+              <input
+                type="number"
+                step="0.1"
+                value={settings.trail_off_trigger ?? ""}
+                onChange={(e) => set("trail_off_trigger", parseFloat(e.target.value))}
+                style={inputStyle}
+              />
             </Field>
             <Field label="Fraction Per Candle">
-              <input type="number" step="0.05" value={settings.trail_off_fraction_per_candle ?? ""} onChange={(e) => set("trail_off_fraction_per_candle", parseFloat(e.target.value))} style={inputStyle} />
+              <input
+                type="number"
+                step="0.05"
+                value={settings.trail_off_fraction_per_candle ?? ""}
+                onChange={(e) => set("trail_off_fraction_per_candle", parseFloat(e.target.value))}
+                style={inputStyle}
+              />
             </Field>
             <Field label="Trail Off Pattern">
-              <input type="text" value={settings.trail_off_pattern ?? ""} onChange={(e) => set("trail_off_pattern", e.target.value)} style={inputStyle} />
+              <input
+                type="text"
+                value={settings.trail_off_pattern ?? ""}
+                onChange={(e) => set("trail_off_pattern", e.target.value)}
+                style={inputStyle}
+              />
             </Field>
           </div>
         )}
         <div style={gridStyle}>
           <Field label="Stop Loss (%)">
-            <input type="number" step="0.1" value={settings.stop_loss_pct} onChange={(e) => set("stop_loss_pct", parseFloat(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="0.1"
+              value={settings.stop_loss_pct}
+              onChange={(e) => set("stop_loss_pct", parseFloat(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           <Field label="Take Profit (%)">
-            <input type="number" step="0.1" value={settings.take_profit_pct} onChange={(e) => set("take_profit_pct", parseFloat(e.target.value))} style={inputStyle} />
+            <input
+              type="number"
+              step="0.1"
+              value={settings.take_profit_pct}
+              onChange={(e) => set("take_profit_pct", parseFloat(e.target.value))}
+              style={inputStyle}
+            />
           </Field>
           {settings.trailing_stop_enabled && (
             <Field label="Trailing Stop (%)">
-              <input type="number" step="0.1" value={settings.trailing_stop_pct ?? ""} onChange={(e) => set("trailing_stop_pct", parseFloat(e.target.value))} style={inputStyle} />
+              <input
+                type="number"
+                step="0.1"
+                value={settings.trailing_stop_pct ?? ""}
+                onChange={(e) => set("trailing_stop_pct", parseFloat(e.target.value))}
+                style={inputStyle}
+              />
             </Field>
           )}
         </div>
         <div style={{ display: "flex", gap: 24, marginTop: 12 }}>
-          <ToggleField label="Trailing Stop" checked={settings.trailing_stop_enabled} onChange={(v) => set("trailing_stop_enabled", v)} />
-          <ToggleField label="Force Close at Close" checked={settings.force_close_at_close} onChange={(v) => set("force_close_at_close", v)} />
+          <ToggleField
+            label="Trailing Stop"
+            checked={settings.trailing_stop_enabled}
+            onChange={(v) => set("trailing_stop_enabled", v)}
+          />
+          <ToggleField
+            label="Force Close at Close"
+            checked={settings.force_close_at_close}
+            onChange={(v) => set("force_close_at_close", v)}
+          />
         </div>
       </section>
 
@@ -284,7 +474,9 @@ export default function SettingsPageInner() {
           {saving ? "Saving…" : "Save Settings"}
         </button>
         {savedMsg && (
-          <span style={{ fontSize: 13, color: savedMsg.startsWith("Error") ? "#ef4444" : "#34d399" }}>
+          <span
+            style={{ fontSize: 13, color: savedMsg.startsWith("Error") ? "#ef4444" : "#34d399" }}
+          >
             {savedMsg}
           </span>
         )}
@@ -295,17 +487,41 @@ export default function SettingsPageInner() {
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, color: "#d1d5db" }}>
+    <label
+      style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 13, color: "#d1d5db" }}
+    >
       {label}
       {children}
     </label>
   );
 }
 
-function ToggleField({ label, checked, onChange }: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+function ToggleField({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
-    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13, color: "#9ca3af" }}>
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} style={{ width: 14, height: 14 }} />
+    <label
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        cursor: "pointer",
+        fontSize: 13,
+        color: "#9ca3af",
+      }}
+    >
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ width: 14, height: 14 }}
+      />
       {label}
     </label>
   );

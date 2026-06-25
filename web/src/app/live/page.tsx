@@ -17,7 +17,11 @@ export default function LivePage() {
   if (connectionState !== "connected") {
     return (
       <div style={{ color: "#9ca3af", textAlign: "center", marginTop: 80 }}>
-        Not connected. <a href="/connect" style={{ color: "#3b82f6" }}>Connect first</a>.
+        Not connected.{" "}
+        <a href="/connect" style={{ color: "#3b82f6" }}>
+          Connect first
+        </a>
+        .
       </div>
     );
   }
@@ -42,9 +46,7 @@ export default function LivePage() {
           gap: 4,
         }}
       >
-        {logs.length === 0 && (
-          <span style={{ color: "#4b5563" }}>Waiting for log events…</span>
-        )}
+        {logs.length === 0 && <span style={{ color: "#4b5563" }}>Waiting for log events…</span>}
         {logs.map((log, i) => (
           <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
             <span style={{ color: "#4b5563", whiteSpace: "nowrap" }}>

@@ -9,7 +9,11 @@ export default function SettingsPage() {
   if (connectionState !== "connected") {
     return (
       <div style={{ color: "#9ca3af", textAlign: "center", marginTop: 80 }}>
-        Not connected. <a href="/connect" style={{ color: "#3b82f6" }}>Connect first</a>.
+        Not connected.{" "}
+        <a href="/connect" style={{ color: "#3b82f6" }}>
+          Connect first
+        </a>
+        .
       </div>
     );
   }

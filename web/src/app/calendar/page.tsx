@@ -42,21 +42,29 @@ export default function CalendarPage() {
   }, [selectedDay, client]);
 
   function prevMonth() {
-    if (month === 1) { setYear((y) => y - 1); setMonth(12); }
-    else setMonth((m) => m - 1);
+    if (month === 1) {
+      setYear((y) => y - 1);
+      setMonth(12);
+    } else setMonth((m) => m - 1);
     setSelectedDay(null);
   }
 
   function nextMonth() {
-    if (month === 12) { setYear((y) => y + 1); setMonth(1); }
-    else setMonth((m) => m + 1);
+    if (month === 12) {
+      setYear((y) => y + 1);
+      setMonth(1);
+    } else setMonth((m) => m + 1);
     setSelectedDay(null);
   }
 
   if (connectionState !== "connected") {
     return (
       <div style={{ color: "#9ca3af", textAlign: "center", marginTop: 80 }}>
-        Not connected. <a href="/connect" style={{ color: "#3b82f6" }}>Connect first</a>.
+        Not connected.{" "}
+        <a href="/connect" style={{ color: "#3b82f6" }}>
+          Connect first
+        </a>
+        .
       </div>
     );
   }
@@ -79,13 +87,27 @@ export default function CalendarPage() {
 
       {selectedDay && (
         <div style={{ marginTop: 28 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: 12,
+            }}
+          >
             <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>
-              {selectedDay.date} — {selectedDay.total_pl >= 0 ? "+" : ""}{selectedDay.total_pl.toFixed(2)} ({selectedDay.trade_count} trades)
+              {selectedDay.date} — {selectedDay.total_pl >= 0 ? "+" : ""}
+              {selectedDay.total_pl.toFixed(2)} ({selectedDay.trade_count} trades)
             </h2>
             <button
               onClick={() => setSelectedDay(null)}
-              style={{ background: "none", border: "none", color: "#4b5563", cursor: "pointer", fontSize: 18 }}
+              style={{
+                background: "none",
+                border: "none",
+                color: "#4b5563",
+                cursor: "pointer",
+                fontSize: 18,
+              }}
             >
               ×
             </button>
@@ -99,7 +121,17 @@ export default function CalendarPage() {
               <thead>
                 <tr>
                   {["Symbol", "Type", "Time", "Qty", "Price", "P&L"].map((h) => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px 12px", color: "#6b7280", fontSize: 11, textTransform: "uppercase", borderBottom: "1px solid #1f2937" }}>
+                    <th
+                      key={h}
+                      style={{
+                        textAlign: "left",
+                        padding: "8px 12px",
+                        color: "#6b7280",
+                        fontSize: 11,
+                        textTransform: "uppercase",
+                        borderBottom: "1px solid #1f2937",
+                      }}
+                    >
                       {h}
                     </th>
                   ))}
@@ -108,13 +140,20 @@ export default function CalendarPage() {
               <tbody>
                 {dayTrades.map((t) => (
                   <tr key={t.id} style={{ borderBottom: "1px solid #1a2332" }}>
-                    <td style={{ padding: "8px 12px", color: "#60a5fa", fontWeight: 600 }}>{t.symbol}</td>
+                    <td style={{ padding: "8px 12px", color: "#60a5fa", fontWeight: 600 }}>
+                      {t.symbol}
+                    </td>
                     <td style={{ padding: "8px 12px", color: "#e5e7eb" }}>{t.type}</td>
-                    <td style={{ padding: "8px 12px", color: "#9ca3af" }}>{t.timestamp.slice(11, 19)}</td>
+                    <td style={{ padding: "8px 12px", color: "#9ca3af" }}>
+                      {t.timestamp.slice(11, 19)}
+                    </td>
                     <td style={{ padding: "8px 12px", color: "#e5e7eb" }}>{t.qty}</td>
                     <td style={{ padding: "8px 12px", color: "#e5e7eb" }}>${t.price.toFixed(2)}</td>
-                    <td style={{ padding: "8px 12px", color: t.net_pl >= 0 ? "#34d399" : "#f87171" }}>
-                      {t.net_pl >= 0 ? "+" : ""}{t.net_pl.toFixed(2)}
+                    <td
+                      style={{ padding: "8px 12px", color: t.net_pl >= 0 ? "#34d399" : "#f87171" }}
+                    >
+                      {t.net_pl >= 0 ? "+" : ""}
+                      {t.net_pl.toFixed(2)}
                     </td>
                   </tr>
                 ))}

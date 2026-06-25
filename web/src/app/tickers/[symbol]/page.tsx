@@ -20,14 +20,7 @@ function PriceRangeChart({ ticker }: { ticker: ExtendedTickerState }) {
       {/* Range bar */}
       <rect x={20} y={30} width={240} height={20} rx={4} fill="#1f2937" />
       {/* Current price marker */}
-      <rect
-        x={20 + currentPct * 240 - 2}
-        y={20}
-        width={4}
-        height={40}
-        rx={2}
-        fill="#60a5fa"
-      />
+      <rect x={20 + currentPct * 240 - 2} y={20} width={4} height={40} rx={2} fill="#60a5fa" />
       {/* Low label */}
       <text x={20} y={68} fill="#6b7280" fontSize={11}>
         ${low_of_day.toFixed(2)}
@@ -86,7 +79,11 @@ export default function TickerDetailPage({ params }: { params: { symbol: string 
   if (connectionState !== "connected") {
     return (
       <div style={{ color: "#9ca3af", textAlign: "center", marginTop: 80 }}>
-        Not connected. <a href="/connect" style={{ color: "#3b82f6" }}>Connect first</a>.
+        Not connected.{" "}
+        <a href="/connect" style={{ color: "#3b82f6" }}>
+          Connect first
+        </a>
+        .
       </div>
     );
   }
@@ -141,7 +138,12 @@ export default function TickerDetailPage({ params }: { params: { symbol: string 
           ["Last Price", `$${ticker.last_price.toFixed(2)}`],
           ["High of Day", `$${ticker.high_of_day.toFixed(2)}`],
           ["Low of Day", `$${ticker.low_of_day.toFixed(2)}`],
-          ["% Change", ticker.pct_change !== undefined ? `${ticker.pct_change >= 0 ? "+" : ""}${ticker.pct_change.toFixed(2)}%` : "—"],
+          [
+            "% Change",
+            ticker.pct_change !== undefined
+              ? `${ticker.pct_change >= 0 ? "+" : ""}${ticker.pct_change.toFixed(2)}%`
+              : "—",
+          ],
           ["RVOL", ticker.rvol !== undefined ? `${ticker.rvol.toFixed(1)}×` : "—"],
           ["Float", fmtFloat(ticker.float_shares)],
           ["MACD Hist", ticker.macd_hist.toFixed(4)],
@@ -149,8 +151,24 @@ export default function TickerDetailPage({ params }: { params: { symbol: string 
           ["Role", ticker.role ?? "—"],
           ["Score", ticker.score.toFixed(0)],
         ].map(([label, value]) => (
-          <div key={label} style={{ backgroundColor: "#111827", borderRadius: 8, padding: "12px 16px", border: "1px solid #1f2937" }}>
-            <div style={{ color: "#6b7280", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
+          <div
+            key={label}
+            style={{
+              backgroundColor: "#111827",
+              borderRadius: 8,
+              padding: "12px 16px",
+              border: "1px solid #1f2937",
+            }}
+          >
+            <div
+              style={{
+                color: "#6b7280",
+                fontSize: 11,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em",
+                marginBottom: 4,
+              }}
+            >
               {label}
             </div>
             <div style={{ fontSize: 16, fontWeight: 600 }}>{value}</div>
@@ -160,7 +178,15 @@ export default function TickerDetailPage({ params }: { params: { symbol: string 
 
       {ticker.pattern_tags.length > 0 && (
         <div style={{ marginTop: 20 }}>
-          <div style={{ color: "#6b7280", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+          <div
+            style={{
+              color: "#6b7280",
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.05em",
+              marginBottom: 8,
+            }}
+          >
             Patterns
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

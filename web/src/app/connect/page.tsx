@@ -54,15 +54,21 @@ export default function ConnectPage() {
           />
         </label>
         {error && (
-          <div role="alert" style={{ color: "#ef4444", fontSize: 13, padding: "8px 12px", backgroundColor: "#1f1414", borderRadius: 6, border: "1px solid #7f1d1d" }}>
+          <div
+            role="alert"
+            style={{
+              color: "#ef4444",
+              fontSize: 13,
+              padding: "8px 12px",
+              backgroundColor: "#1f1414",
+              borderRadius: 6,
+              border: "1px solid #7f1d1d",
+            }}
+          >
             {error}
           </div>
         )}
-        <button
-          type="submit"
-          disabled={connectionState === "connecting"}
-          style={btnStyle}
-        >
+        <button type="submit" disabled={connectionState === "connecting"} style={btnStyle}>
           {connectionState === "connecting" ? "Connecting…" : "Connect"}
         </button>
       </form>

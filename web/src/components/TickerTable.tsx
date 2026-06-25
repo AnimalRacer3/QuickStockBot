@@ -54,13 +54,18 @@ export function TickerTable({ tickers }: Props) {
               }}
             >
               <td style={tdStyle}>
-                <Link href={`/tickers/${t.symbol}`} style={{ color: "#60a5fa", textDecoration: "none", fontWeight: 600 }}>
+                <Link
+                  href={`/tickers/${t.symbol}`}
+                  style={{ color: "#60a5fa", textDecoration: "none", fontWeight: 600 }}
+                >
                   {t.symbol}
                 </Link>
               </td>
               <td style={tdStyle}>${fmt(t.last_price)}</td>
               <td style={{ ...tdStyle, color: (t.pct_change ?? 0) >= 0 ? "#34d399" : "#f87171" }}>
-                {t.pct_change !== undefined ? `${t.pct_change >= 0 ? "+" : ""}${fmt(t.pct_change)}%` : "—"}
+                {t.pct_change !== undefined
+                  ? `${t.pct_change >= 0 ? "+" : ""}${fmt(t.pct_change)}%`
+                  : "—"}
               </td>
               <td style={tdStyle}>{fmt(t.rvol, 1)}×</td>
               <td style={tdStyle}>{fmtFloat(t.float_shares)}</td>

@@ -25,16 +25,22 @@ export const RelayContext = createContext<RelayContextValue>({
 const STORAGE_KEY = "qsb_relay_conn";
 
 function saveConn(url: string, pw: string) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ url, pw })); } catch {}
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ url, pw }));
+  } catch {}
 }
 function clearConn() {
-  try { localStorage.removeItem(STORAGE_KEY); } catch {}
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {}
 }
 function loadConn(): { url: string; pw: string } | null {
   try {
     const s = typeof localStorage !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
     return s ? (JSON.parse(s) as { url: string; pw: string }) : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export function RelayProvider({ children }: { children: React.ReactNode }) {
@@ -63,9 +69,12 @@ export function RelayProvider({ children }: { children: React.ReactNode }) {
     setClient(newClient);
 
     newClient.subscribeLogs().catch(() => {});
-    newClient.getState().then((state) => {
-      if (state.tickers) setTickers(state.tickers);
-    }).catch(() => {});
+    newClient
+      .getState()
+      .then((state) => {
+        if (state.tickers) setTickers(state.tickers);
+      })
+      .catch(() => {});
   }, []);
 
   const disconnect = useCallback(() => {
@@ -79,7 +88,9 @@ export function RelayProvider({ children }: { children: React.ReactNode }) {
 
   // Auto-reconnect from localStorage on mount
   const connectRef = useRef(connect);
-  useEffect(() => { connectRef.current = connect; }, [connect]);
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   useEffect(() => {
     const saved = loadConn();

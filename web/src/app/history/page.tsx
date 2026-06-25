@@ -43,7 +43,11 @@ export default function HistoryPage() {
   if (connectionState !== "connected") {
     return (
       <div style={{ color: "#9ca3af", textAlign: "center", marginTop: 80 }}>
-        Not connected. <a href="/connect" style={{ color: "#3b82f6" }}>Connect first</a>.
+        Not connected.{" "}
+        <a href="/connect" style={{ color: "#3b82f6" }}>
+          Connect first
+        </a>
+        .
       </div>
     );
   }
@@ -56,13 +60,21 @@ export default function HistoryPage() {
     <div>
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Trade History</h1>
       <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap" }}>
-        <select value={filterType} onChange={(e) => setFilterType(e.target.value as FilterType)} style={selectStyle}>
+        <select
+          value={filterType}
+          onChange={(e) => setFilterType(e.target.value as FilterType)}
+          style={selectStyle}
+        >
           <option value="all">All Types</option>
           <option value="buy">Buy</option>
           <option value="sell">Sell</option>
           <option value="short">Short</option>
         </select>
-        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as FilterStatus)} style={selectStyle}>
+        <select
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value as FilterStatus)}
+          style={selectStyle}
+        >
           <option value="all">All Statuses</option>
           <option value="filled">Filled</option>
           <option value="partial">Partial</option>
@@ -86,7 +98,9 @@ export default function HistoryPage() {
             <thead>
               <tr>
                 {["Type", "Timestamp", "Symbol", "Qty", "Price", "P&L", "Status"].map((h) => (
-                  <th key={h} style={thStyle}>{h}</th>
+                  <th key={h} style={thStyle}>
+                    {h}
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -103,7 +117,8 @@ export default function HistoryPage() {
                   <td style={tdStyle}>{t.qty}</td>
                   <td style={tdStyle}>${t.price.toFixed(2)}</td>
                   <td style={{ ...tdStyle, color: t.net_pl >= 0 ? "#34d399" : "#f87171" }}>
-                    {t.net_pl >= 0 ? "+" : ""}{t.net_pl.toFixed(2)}
+                    {t.net_pl >= 0 ? "+" : ""}
+                    {t.net_pl.toFixed(2)}
                   </td>
                   <td style={tdStyle}>{t.status}</td>
                 </tr>
@@ -111,13 +126,37 @@ export default function HistoryPage() {
             </tbody>
           </table>
           {filtered.length === 0 && (
-            <div style={{ textAlign: "center", color: "#4b5563", padding: 32 }}>No trades match filters</div>
+            <div style={{ textAlign: "center", color: "#4b5563", padding: 32 }}>
+              No trades match filters
+            </div>
           )}
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: 16, fontSize: 13, color: "#6b7280" }}>
-            <span>Showing {filtered.length} of {total} trades</span>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginTop: 16,
+              fontSize: 13,
+              color: "#6b7280",
+            }}
+          >
+            <span>
+              Showing {filtered.length} of {total} trades
+            </span>
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setOffset(Math.max(0, offset - LIMIT))} disabled={offset === 0} style={pageBtnStyle}>Previous</button>
-              <button onClick={() => setOffset(offset + LIMIT)} disabled={offset + LIMIT >= total} style={pageBtnStyle}>Next</button>
+              <button
+                onClick={() => setOffset(Math.max(0, offset - LIMIT))}
+                disabled={offset === 0}
+                style={pageBtnStyle}
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setOffset(offset + LIMIT)}
+                disabled={offset + LIMIT >= total}
+                style={pageBtnStyle}
+              >
+                Next
+              </button>
             </div>
           </div>
         </>
@@ -129,7 +168,18 @@ export default function HistoryPage() {
 function TradeDetailView({ trade, onBack }: { trade: TradeDetail; onBack: () => void }) {
   return (
     <div style={{ maxWidth: 600 }}>
-      <button onClick={onBack} style={{ background: "none", border: "none", color: "#6b7280", cursor: "pointer", fontSize: 13, marginBottom: 16, padding: 0 }}>
+      <button
+        onClick={onBack}
+        style={{
+          background: "none",
+          border: "none",
+          color: "#6b7280",
+          cursor: "pointer",
+          fontSize: 13,
+          marginBottom: 16,
+          padding: 0,
+        }}
+      >
         ← Back to Trade History
       </button>
       <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>
@@ -144,19 +194,50 @@ function TradeDetailView({ trade, onBack }: { trade: TradeDetail; onBack: () => 
           ["Opened", trade.opened_at ?? "—"],
           ["Closed", trade.closed_at ?? "—"],
         ].map(([k, v]) => (
-          <div key={k} style={{ backgroundColor: "#111827", borderRadius: 6, padding: "10px 14px", border: "1px solid #1f2937" }}>
-            <div style={{ color: "#6b7280", fontSize: 11, textTransform: "uppercase", marginBottom: 4 }}>{k}</div>
+          <div
+            key={k}
+            style={{
+              backgroundColor: "#111827",
+              borderRadius: 6,
+              padding: "10px 14px",
+              border: "1px solid #1f2937",
+            }}
+          >
+            <div
+              style={{
+                color: "#6b7280",
+                fontSize: 11,
+                textTransform: "uppercase",
+                marginBottom: 4,
+              }}
+            >
+              {k}
+            </div>
             <div style={{ fontSize: 14 }}>{v}</div>
           </div>
         ))}
       </div>
-      <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, color: "#9ca3af" }}>Status History</h3>
+      <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 10, color: "#9ca3af" }}>
+        Status History
+      </h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
         {(trade.status_history ?? []).map((h, i) => (
-          <div key={i} style={{ display: "flex", gap: 16, fontSize: 13, padding: "6px 10px", backgroundColor: "#111827", borderRadius: 4 }}>
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              gap: 16,
+              fontSize: 13,
+              padding: "6px 10px",
+              backgroundColor: "#111827",
+              borderRadius: 4,
+            }}
+          >
             <span style={{ color: "#4b5563" }}>{h.timestamp}</span>
             <span style={{ color: "#e5e7eb" }}>{h.status}</span>
-            {h.filled_price && <span style={{ color: "#60a5fa" }}>@ ${h.filled_price.toFixed(2)}</span>}
+            {h.filled_price && (
+              <span style={{ color: "#60a5fa" }}>@ ${h.filled_price.toFixed(2)}</span>
+            )}
           </div>
         ))}
         {(!trade.status_history || trade.status_history.length === 0) && (

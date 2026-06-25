@@ -65,7 +65,7 @@ describe("Settings round-trip", () => {
         }}
       >
         <SettingsPageInner />
-      </RelayContext.Provider>,
+      </RelayContext.Provider>
     );
   }
 
