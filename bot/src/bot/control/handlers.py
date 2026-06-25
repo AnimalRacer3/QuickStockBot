@@ -8,6 +8,7 @@ testable without any WebSocket machinery.
 
 from __future__ import annotations
 
+import json
 import math
 import sqlite3
 import time
@@ -15,6 +16,31 @@ from collections.abc import Callable
 from typing import Any
 
 from bot.control import db as dbmod
+
+# ─── License / notice constants ───────────────────────────────────────────────
+
+_LICENSE_STATUS_KEY = "_license_cached_status"
+_LICENSE_ALLOWED_KEY = "_license_trading_allowed"
+_LICENSE_REASON_KEY = "_license_reason"
+
+# As of June 4, 2026 the old $25k PDT / day-trade-counting rules were replaced
+# by a risk-based intraday-margin standard.  Brokers may phase the change in
+# through October 20, 2027, so the bot defers to the broker's reported state.
+_PDT_FRAMEWORK_NOTICE = (
+    "NOTICE (June 4, 2026 framework): The $25,000 pattern-day-trader minimum "
+    "and day-trade counting were eliminated and replaced by a risk-based "
+    "intraday-margin standard. The relevant floor is now the $2,000 margin "
+    "minimum (min_account_equity_notice). Buying power is intraday-margin-based. "
+    "Because brokers may phase the change in through October 20, 2027, old rules "
+    "may still apply until your broker (Alpaca) migrates — the bot defers to "
+    "Alpaca's reported restrictions (see Section 6). Not financial advice."
+)
+
+_LIVE_MODE_NOTICE = (
+    "NOTICE: Live trading is enabled. Paper trading is recommended for new users "
+    "and during strategy validation. This software does not provide financial advice. "
+    "You trade at your own risk."
+)
 
 # ─── Settings helpers ─────────────────────────────────────────────────────────
 
@@ -82,6 +108,85 @@ def _build_settings_response(raw: dict[str, str | None]) -> dict[str, Any]:
 # ─── Handlers ─────────────────────────────────────────────────────────────────
 
 
+def _build_notices(db: sqlite3.Connection, account: dict | None) -> list[dict]:
+    """Compile runtime notices surfaced to the dashboard."""
+    notices: list[dict] = []
+
+    # ── License notice ────────────────────────────────────────────────────
+    lic_rows = {
+        r[0]: r[1]
+        for r in db.execute(
+            "SELECT key, value FROM settings WHERE key IN (?, ?, ?)",
+            (_LICENSE_STATUS_KEY, _LICENSE_ALLOWED_KEY, _LICENSE_REASON_KEY),
+        ).fetchall()
+    }
+    lic_status = lic_rows.get(_LICENSE_STATUS_KEY, "unknown")
+    lic_allowed_str = lic_rows.get(_LICENSE_ALLOWED_KEY, "false") or "false"
+    lic_trading_allowed = lic_allowed_str.lower() in ("true", "1")
+    lic_reason = lic_rows.get(_LICENSE_REASON_KEY, "")
+
+    if lic_status != "active":
+        notices.append(
+            {
+                "type": "license",
+                "severity": "warning" if lic_trading_allowed else "error",
+                "trading_allowed": lic_trading_allowed,
+                "message": lic_reason or f"license status: {lic_status}",
+            }
+        )
+
+    # ── Live-mode notice ──────────────────────────────────────────────────
+    paper_row = db.execute(
+        "SELECT value FROM settings WHERE key = 'paper_trading'"
+    ).fetchone()
+    paper_val = (paper_row[0] if paper_row else "true") or "true"
+    is_live = paper_val.lower() not in ("true", "1")
+
+    if is_live:
+        notices.append(
+            {
+                "type": "live_mode",
+                "severity": "warning",
+                "message": _LIVE_MODE_NOTICE,
+            }
+        )
+
+    # ── Account equity / PDT framework notice ─────────────────────────────
+    notices.append(
+        {
+            "type": "account_equity",
+            "severity": "info",
+            "message": _PDT_FRAMEWORK_NOTICE,
+            "pdt_framework": {
+                "effective_date": "2026-06-04",
+                "broker_migration_deadline": "2027-10-20",
+                "min_account_equity_notice": 2000.0,
+                "old_pdt_rule_eliminated": True,
+                "broker_may_still_use_old_rules": True,
+            },
+        }
+    )
+
+    if account:
+        is_pdt_restricted = bool(account.get("is_pdt_restricted", False))
+        day_trade_count = account.get("day_trade_count", 0)
+        if is_pdt_restricted:
+            notices.append(
+                {
+                    "type": "pdt_restricted",
+                    "severity": "warning",
+                    "day_trade_count": day_trade_count,
+                    "message": (
+                        "PDT flag active on your Alpaca account — new entries blocked. "
+                        "This may reflect old rules still in effect at your broker "
+                        "pending their migration to the June 4, 2026 framework."
+                    ),
+                }
+            )
+
+    return notices
+
+
 def handle_get_state(db: sqlite3.Connection, params: dict) -> dict:
     tickers = dbmod.get_all_tickers(db)
 
@@ -91,14 +196,13 @@ def handle_get_state(db: sqlite3.Connection, params: dict) -> dict:
     ).fetchone()
     account = None
     if raw_acct and raw_acct[0]:
-        import json
-
         try:
             account = json.loads(raw_acct[0])
         except Exception:
             pass
 
-    return {"tickers": tickers, "account": account}
+    notices = _build_notices(db, account)
+    return {"tickers": tickers, "account": account, "notices": notices}
 
 
 def handle_get_active_tickers(db: sqlite3.Connection, params: dict) -> dict:
@@ -122,9 +226,20 @@ def handle_get_settings(db: sqlite3.Connection, params: dict) -> dict:
 
 
 def handle_update_settings(db: sqlite3.Connection, params: dict) -> dict:
-    patch: dict = params.get("patch") or {}
+    patch: dict = dict(params.get("patch") or {})  # copy; we may pop keys
     if not patch:
         return handle_get_settings(db, {})
+
+    # ── Live-mode confirmation gate ──────────────────────────────────────
+    # Popped before the write loop so it is never persisted.
+    live_confirmed = patch.pop("live_mode_confirmed", None)
+    if "paper_trading" in patch and not patch["paper_trading"]:
+        if not live_confirmed:
+            raise ValueError(
+                "live_mode_confirmation_required: enabling live trading requires "
+                "live_mode_confirmed=true. Paper trading is recommended for new "
+                "users and during strategy validation. Not financial advice."
+            )
 
     raw = dbmod.get_all_settings_raw(db)
 
