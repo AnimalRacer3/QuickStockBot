@@ -263,7 +263,6 @@ jobs:
   deploy-gate:
     name: Deploy gate
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     needs: [bot, relay, web, web-e2e, installer, shared, deploy-configs]
 
     steps:
