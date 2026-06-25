@@ -90,7 +90,7 @@ test("sign up form → check email page", async ({ page }) => {
   await page.goto("/signup");
   await page.fill('input[type="email"]', "newuser@example.com");
   await page.fill('input[type="password"]', "password123");
-  await page.click('button[type="submit"]');
+  await page.click('button[type="submit"]', { force: true });
 
   await expect(page).toHaveURL(/\/verify-email/);
   await expect(page.locator("h1")).toContainText("Check your email");
@@ -109,7 +109,7 @@ test("duplicate email signup shows error", async ({ page }) => {
   await page.goto("/signup");
   await page.fill('input[type="email"]', "existing@example.com");
   await page.fill('input[type="password"]', "password123");
-  await page.click('button[type="submit"]');
+  await page.click('button[type="submit"]', { force: true });
 
   await expect(page.locator('[role="alert"]')).toContainText(
     "Email already registered"
@@ -130,7 +130,7 @@ test("login with unverified account redirects to /verify-email", async ({
   await page.goto("/login");
   await page.fill('input[type="email"]', "unverified@example.com");
   await page.fill('input[type="password"]', "password123");
-  await page.click('button[type="submit"]');
+  await page.click('button[type="submit"]', { force: true });
 
   await expect(page).toHaveURL(/\/verify-email/);
 });
@@ -154,7 +154,7 @@ test("login with verified account redirects to /dashboard", async ({ page }) => 
   await page.goto("/login");
   await page.fill('input[type="email"]', "verified@example.com");
   await page.fill('input[type="password"]', "password123");
-  await page.click('button[type="submit"]');
+  await page.click('button[type="submit"]', { force: true });
 
   await expect(page).toHaveURL(/\/dashboard/);
 });

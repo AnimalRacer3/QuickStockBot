@@ -1,5 +1,9 @@
 import { defineConfig, devices } from "@playwright/test";
 
+// Align test-runner process secret with the webServer env so signSession in
+// test files produces cookies the dev server will accept.
+process.env.SESSION_SECRET = "test-secret-for-playwright-must-be-32c";
+
 const preinstalledChrome = process.env.PLAYWRIGHT_BROWSERS_PATH
   ? `${process.env.PLAYWRIGHT_BROWSERS_PATH}/chromium_headless_shell-1194/chrome-linux/headless_shell`
   : undefined;
