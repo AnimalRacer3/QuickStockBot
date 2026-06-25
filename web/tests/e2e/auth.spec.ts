@@ -111,7 +111,7 @@ test("duplicate email signup shows error", async ({ page }) => {
   await page.fill('input[type="password"]', "password123");
   await page.locator('input[type="password"]').press('Enter');
 
-  await expect(page.locator('[role="alert"]')).toContainText(
+  await expect(page.locator('p[role="alert"]')).toContainText(
     "Email already registered"
   );
 });
