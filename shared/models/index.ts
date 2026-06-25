@@ -5,3 +5,5 @@ export * from './trade';
 export * from './log';
 export * from './list';
 export * from './mlSample';
+export * from './tickerProfitStats';
+export * from './dailyEfficiency';

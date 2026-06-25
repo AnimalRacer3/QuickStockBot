@@ -200,6 +200,33 @@
         }
       },
       "result": { "subscribed": { "type": "boolean" } }
+    },
+    "get_daily_pl": {
+      "description": "Return per-day P/L summary for a date range. Only days the bot actually ran are included.",
+      "params": {
+        "start": { "type": "string", "format": "date", "description": "Inclusive start date YYYY-MM-DD." },
+        "end":   { "type": "string", "format": "date", "description": "Inclusive end date YYYY-MM-DD." }
+      },
+      "result": {
+        "days": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["date", "ran", "net_pl", "trade_count", "color"],
+            "properties": {
+              "date":        { "type": "string", "format": "date" },
+              "ran":         { "type": "boolean" },
+              "net_pl":      { "type": "number" },
+              "trade_count": { "type": "integer", "minimum": 0 },
+              "color": {
+                "type": "string",
+                "enum": ["green", "red", "blue"],
+                "description": "green=profit, red=loss, blue=flat-or-no-trades."
+              }
+            }
+          }
+        }
+      }
     }
   },
 
