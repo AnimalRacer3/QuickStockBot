@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession, SESSION_COOKIE } from "@/lib/session";
+import { prisma } from "@/lib/db";
+import { isAccessAllowed } from "@/lib/subscription";
 
 const PROTECTED = ["/dashboard", "/view"];
 
@@ -22,6 +24,16 @@ export async function middleware(req: NextRequest) {
 
   if (!session.emailVerified) {
     return NextResponse.redirect(new URL("/verify-email", req.url));
+  }
+
+  if (pathname.startsWith("/dashboard")) {
+    const user = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { subscriptionStatus: true },
+    });
+    if (!isAccessAllowed(user?.subscriptionStatus)) {
+      return NextResponse.redirect(new URL("/billing", req.url));
+    }
   }
 
   return NextResponse.next();
