@@ -15,11 +15,19 @@ import dataclasses
 import logging
 import sqlite3
 import time
-from typing import Literal
+from typing import Any, Literal, Protocol, runtime_checkable
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+@runtime_checkable
+class _HttpClient(Protocol):
+    """Minimal HTTP client protocol — satisfied by httpx.Client and test fakes."""
+
+    def get(self, url: str, **kwargs: Any) -> Any: ...
+
 
 GRACE_PERIOD_SECONDS: float = 30 * 24 * 3600  # 30 days
 
@@ -57,12 +65,12 @@ class LicenseValidator:
         validate_url: str,
         license_key: str,
         db: sqlite3.Connection,
-        http_client: httpx.Client | None = None,
+        http_client: _HttpClient | None = None,
     ) -> None:
         self._url = validate_url
         self._key = license_key
         self._db = db
-        self._http = http_client or httpx.Client(timeout=10.0)
+        self._http: _HttpClient = http_client or httpx.Client(timeout=10.0)
         # Restore any cached state so trading decisions are instant on restart
         self._state: LicenseStatus = self._load_cached()
 
