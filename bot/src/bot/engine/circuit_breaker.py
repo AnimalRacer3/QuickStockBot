@@ -23,6 +23,9 @@ class DailyState:
     halt_reason: str = ""
     # Expose goalpost so the learning model (Section 7) can target it.
     goalpost_trade_count: int = 1
+    # Giveback mode state (Section 18)
+    daily_pl_high: float = 0.0  # running max of total_pnl over the day (dollars)
+    giveback_armed: bool = False  # true once daily_pl_pct >= daily_profit_target_pct
 
     @property
     def total_pnl(self) -> float:
@@ -67,12 +70,40 @@ def check_daily_limits(
             return DailyAction.FLATTEN_AND_HALT
         return DailyAction.HALT
 
-    # Profit-target circuit breaker
-    if pnl_pct >= config.daily_profit_target_pct:
-        state.halted = True
-        state.halt_reason = f"daily profit target hit ({pnl_pct:.2f}% >= {config.daily_profit_target_pct:.2f}%)"
-        if config.flatten_on_profit_target:
-            return DailyAction.FLATTEN_AND_HALT
-        return DailyAction.HALT
+    # Profit-side circuit breaker — behaviour depends on mode
+    if config.daily_target_mode == "stop":
+        # Legacy hard-stop: halt (and optionally flatten) the moment target is hit.
+        if pnl_pct >= config.daily_profit_target_pct:
+            state.halted = True
+            state.halt_reason = (
+                f"daily profit target hit ({pnl_pct:.2f}% >= "
+                f"{config.daily_profit_target_pct:.2f}%)"
+            )
+            if config.flatten_on_profit_target:
+                return DailyAction.FLATTEN_AND_HALT
+            return DailyAction.HALT
+    else:
+        # Giveback mode: arm at activation threshold, then trail the high-water mark.
+        # Always update the running high-water mark.
+        current_pnl = state.total_pnl
+        if current_pnl > state.daily_pl_high:
+            state.daily_pl_high = current_pnl
+
+        # Arm once the activation threshold is crossed.
+        if not state.giveback_armed and pnl_pct >= config.daily_profit_target_pct:
+            state.giveback_armed = True
+
+        # If armed, check whether P/L has given back enough from the peak.
+        if state.giveback_armed:
+            trigger = state.daily_pl_high * (1.0 - config.daily_giveback_pct / 100.0)
+            if current_pnl <= trigger:
+                state.halted = True
+                state.halt_reason = (
+                    f"giveback triggered: daily_pl ${current_pnl:.2f} <= "
+                    f"trigger ${trigger:.2f} "
+                    f"(peak ${state.daily_pl_high:.2f}, "
+                    f"giveback {config.daily_giveback_pct:.1f}%)"
+                )
+                return DailyAction.FLATTEN_AND_HALT
 
     return DailyAction.NONE

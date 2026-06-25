@@ -444,8 +444,11 @@ class TestMaxLossCircuitBreaker:
 
 
 class TestProfitTargetCircuitBreaker:
+    """Stop-mode hard-stop tests — explicitly set daily_target_mode="stop"."""
+
     def test_halt_on_profit_target_no_flatten(self) -> None:
         cfg = ExecutionConfig(
+            daily_target_mode="stop",
             daily_profit_target_pct=3.0,
             flatten_on_profit_target=False,
             conviction_threshold=0.0,
@@ -465,6 +468,7 @@ class TestProfitTargetCircuitBreaker:
 
     def test_flatten_on_profit_target(self) -> None:
         cfg = ExecutionConfig(
+            daily_target_mode="stop",
             daily_profit_target_pct=3.0,
             flatten_on_profit_target=True,
             conviction_threshold=0.0,
@@ -487,6 +491,7 @@ class TestProfitTargetCircuitBreaker:
     def test_single_trade_reaching_target_halts_day(self) -> None:
         """Reaching the profit target in one trade halts the day (no new entries)."""
         cfg = ExecutionConfig(
+            daily_target_mode="stop",
             daily_profit_target_pct=3.0,
             flatten_on_profit_target=False,
             conviction_threshold=0.0,

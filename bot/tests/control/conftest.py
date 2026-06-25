@@ -136,6 +136,8 @@ _DEFAULT_SETTINGS = [
     ("macd_slow", "26"),
     ("macd_signal", "9"),
     ("log_level", "info"),
+    ("daily_target_mode", "giveback"),
+    ("daily_giveback_pct", "25.0"),
 ]
 
 

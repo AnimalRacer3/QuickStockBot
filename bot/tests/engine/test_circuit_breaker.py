@@ -71,8 +71,14 @@ class TestMaxLoss:
 
 
 class TestProfitTarget:
+    """Stop-mode hard-stop tests — must set daily_target_mode="stop" explicitly."""
+
     def test_reaches_target_flatten_and_halt(self) -> None:
-        cfg = _cfg(daily_profit_target_pct=3.0, flatten_on_profit_target=True)
+        cfg = _cfg(
+            daily_target_mode="stop",
+            daily_profit_target_pct=3.0,
+            flatten_on_profit_target=True,
+        )
         state = _state(100_000)
         action = check_daily_limits(
             state, realized_pnl=3100.0, unrealized_pnl=0.0, config=cfg
@@ -80,7 +86,11 @@ class TestProfitTarget:
         assert action == DailyAction.FLATTEN_AND_HALT
 
     def test_reaches_target_halt_only(self) -> None:
-        cfg = _cfg(daily_profit_target_pct=3.0, flatten_on_profit_target=False)
+        cfg = _cfg(
+            daily_target_mode="stop",
+            daily_profit_target_pct=3.0,
+            flatten_on_profit_target=False,
+        )
         state = _state(100_000)
         action = check_daily_limits(
             state, realized_pnl=3100.0, unrealized_pnl=0.0, config=cfg
@@ -89,7 +99,11 @@ class TestProfitTarget:
         assert state.halted
 
     def test_exactly_at_target_halts(self) -> None:
-        cfg = _cfg(daily_profit_target_pct=3.0, flatten_on_profit_target=True)
+        cfg = _cfg(
+            daily_target_mode="stop",
+            daily_profit_target_pct=3.0,
+            flatten_on_profit_target=True,
+        )
         state = _state(100_000)
         action = check_daily_limits(
             state, realized_pnl=3000.0, unrealized_pnl=0.0, config=cfg
@@ -97,7 +111,11 @@ class TestProfitTarget:
         assert action == DailyAction.FLATTEN_AND_HALT
 
     def test_below_target_continues(self) -> None:
-        cfg = _cfg(daily_profit_target_pct=3.0, flatten_on_profit_target=True)
+        cfg = _cfg(
+            daily_target_mode="stop",
+            daily_profit_target_pct=3.0,
+            flatten_on_profit_target=True,
+        )
         state = _state(100_000)
         action = check_daily_limits(
             state, realized_pnl=2500.0, unrealized_pnl=0.0, config=cfg
@@ -107,6 +125,7 @@ class TestProfitTarget:
     def test_single_trade_can_hit_target(self) -> None:
         # Core of the "prefer 1 trade" incentive
         cfg = _cfg(
+            daily_target_mode="stop",
             daily_profit_target_pct=3.0,
             flatten_on_profit_target=False,
             daily_max_loss_pct=-2.0,

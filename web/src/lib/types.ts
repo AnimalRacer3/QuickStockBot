@@ -23,6 +23,7 @@ export interface ExtendedTickerState {
 }
 
 export type ExitMode = "dump" | "trail_off";
+export type DailyTargetMode = "stop" | "giveback";
 
 export interface BotSettings {
   // Identity
@@ -61,6 +62,8 @@ export interface BotSettings {
   override_risk_per_trade: boolean;
   flatten_on_daily_loss: boolean;
   flatten_on_daily_profit: boolean;
+  daily_target_mode: DailyTargetMode;
+  daily_giveback_pct: number;
 
   // Exits
   exit_mode: ExitMode;
