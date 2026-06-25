@@ -228,7 +228,7 @@ class TestTrailingTrigger:
     def test_trigger_rises_with_new_highs(self) -> None:
         state = _state(2_000.0)
         cfg = _cfg_giveback(target_pct=10.0, giveback_pct=25.0)
-        _call(state, realized=200.0, unrealized=0.0, cfg=cfg)   # arm
+        _call(state, realized=200.0, unrealized=0.0, cfg=cfg)  # arm
 
         # Peak 1: $500 → trigger = $375
         _call(state, realized=500.0, unrealized=0.0, cfg=cfg)
@@ -265,7 +265,12 @@ class TestNeverArmed:
 
     def test_max_loss_still_fires_when_not_armed(self) -> None:
         state = _state(2_000.0)
-        cfg = _cfg_giveback(target_pct=10.0, giveback_pct=25.0, max_loss_pct=-10.0, flatten_on_max_loss=True)
+        cfg = _cfg_giveback(
+            target_pct=10.0,
+            giveback_pct=25.0,
+            max_loss_pct=-10.0,
+            flatten_on_max_loss=True,
+        )
         # Loss of 10% = -$200
         action = _call(state, realized=-200.0, unrealized=0.0, cfg=cfg)
         assert action == DailyAction.FLATTEN_AND_HALT
@@ -380,7 +385,12 @@ class TestRestartPersistence:
 class TestInteractions:
     def test_max_loss_takes_priority_over_armed_giveback(self) -> None:
         state = _state(2_000.0)
-        cfg = _cfg_giveback(target_pct=10.0, giveback_pct=25.0, max_loss_pct=-10.0, flatten_on_max_loss=True)
+        cfg = _cfg_giveback(
+            target_pct=10.0,
+            giveback_pct=25.0,
+            max_loss_pct=-10.0,
+            flatten_on_max_loss=True,
+        )
         # Arm first
         _call(state, realized=200.0, unrealized=0.0, cfg=cfg)
         assert state.giveback_armed
@@ -446,7 +456,9 @@ class TestGivebackSettingsHandlers:
             INSERT INTO settings VALUES ('risk_per_trade_pct', '1.0', 1);
             """
         )
-        result = handle_update_settings(conn, {"patch": {"daily_target_mode": "stop", "daily_giveback_pct": 30.0}})
+        result = handle_update_settings(
+            conn, {"patch": {"daily_target_mode": "stop", "daily_giveback_pct": 30.0}}
+        )
         assert result["daily_target_mode"] == "stop"
         assert result["daily_giveback_pct"] == pytest.approx(30.0)
 

@@ -130,14 +130,18 @@ class TestUpdateSettings:
     def test_daily_target_mode_round_trips(self, db: sqlite3.Connection) -> None:
         result = handle_update_settings(db, {"patch": {"daily_target_mode": "stop"}})
         assert result["daily_target_mode"] == "stop"
-        result2 = handle_update_settings(db, {"patch": {"daily_target_mode": "giveback"}})
+        result2 = handle_update_settings(
+            db, {"patch": {"daily_target_mode": "giveback"}}
+        )
         assert result2["daily_target_mode"] == "giveback"
 
     def test_daily_giveback_pct_round_trips(self, db: sqlite3.Connection) -> None:
         result = handle_update_settings(db, {"patch": {"daily_giveback_pct": 40.0}})
         assert result["daily_giveback_pct"] == pytest.approx(40.0)
 
-    def test_default_daily_target_mode_is_giveback(self, db: sqlite3.Connection) -> None:
+    def test_default_daily_target_mode_is_giveback(
+        self, db: sqlite3.Connection
+    ) -> None:
         result = handle_get_settings(db, {})
         assert result["daily_target_mode"] == "giveback"
         assert result["daily_giveback_pct"] == pytest.approx(25.0)
