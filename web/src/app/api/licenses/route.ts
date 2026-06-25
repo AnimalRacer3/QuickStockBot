@@ -5,8 +5,7 @@ import { createLicenseRepository } from "@/lib/license";
 import { sendLicenseEmail } from "@/lib/email";
 
 const DOWNLOAD_URL =
-  process.env.BOT_DOWNLOAD_URL ??
-  "https://download.quickstockbot.com/bot/latest"; // stubbed until Section 16
+  process.env.BOT_DOWNLOAD_URL ?? "https://download.quickstockbot.com/bot/latest"; // stubbed until Section 16
 
 /** POST /api/licenses — issue a license for a user and send the delivery email. */
 export async function POST(req: NextRequest) {
@@ -42,15 +41,9 @@ export async function POST(req: NextRequest) {
       downloadUrl: DOWNLOAD_URL,
     });
 
-    return NextResponse.json(
-      { key: license.key, issuedAt: license.issuedAt },
-      { status: 201 },
-    );
+    return NextResponse.json({ key: license.key, issuedAt: license.issuedAt }, { status: 201 });
   } catch (err) {
     console.error("[POST /api/licenses]", err);
-    return NextResponse.json(
-      { error: "internal server error" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "internal server error" }, { status: 500 });
   }
 }

@@ -85,11 +85,10 @@ Need help? Reply to this email or check our docs.
 
 export async function sendLicenseEmail(
   client: ResendClient,
-  payload: LicenseEmailPayload,
+  payload: LicenseEmailPayload
 ): Promise<EmailResult> {
   const { subject, html, text } = buildLicenseEmail(payload);
-  const from =
-    process.env.EMAIL_FROM ?? "QuickStockBot <noreply@quickstockbot.com>";
+  const from = process.env.EMAIL_FROM ?? "QuickStockBot <noreply@quickstockbot.com>";
 
   const { data, error } = await client.emails.send({
     from,
@@ -100,9 +99,7 @@ export async function sendLicenseEmail(
   });
 
   if (error || !data) {
-    throw new Error(
-      `Failed to send license email: ${error?.message ?? "unknown error"}`,
-    );
+    throw new Error(`Failed to send license email: ${error?.message ?? "unknown error"}`);
   }
 
   return { id: data.id };

@@ -23,10 +23,7 @@ export interface User {
 export function generateLicenseKey(): string {
   const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   const segment = (): string =>
-    Array.from(
-      { length: 4 },
-      () => CHARS[randomBytes(1)[0] % CHARS.length],
-    ).join("");
+    Array.from({ length: 4 }, () => CHARS[randomBytes(1)[0] % CHARS.length]).join("");
   return `QSB-${segment()}-${segment()}-${segment()}-${segment()}`;
 }
 
@@ -72,23 +69,21 @@ export function createLicenseRepository(db: Database.Database) {
   const stmts = {
     insertLicense: db.prepare(
       `INSERT INTO licenses (key, user_id, status, issued_at, expires_at)
-       VALUES (?, ?, 'active', ?, ?)`,
+       VALUES (?, ?, 'active', ?, ?)`
     ),
     getLicense: db.prepare<[string], LicenseRow>(
-      `SELECT key, user_id, status, issued_at, expires_at FROM licenses WHERE key = ?`,
+      `SELECT key, user_id, status, issued_at, expires_at FROM licenses WHERE key = ?`
     ),
-    updateStatus: db.prepare(
-      `UPDATE licenses SET status = ? WHERE key = ? AND status != ?`,
-    ),
+    updateStatus: db.prepare(`UPDATE licenses SET status = ? WHERE key = ? AND status != ?`),
     insertUser: db.prepare(
       `INSERT INTO users (id, email, name, subscription_status, created_at)
-       VALUES (?, ?, ?, 'active', ?)`,
+       VALUES (?, ?, ?, 'active', ?)`
     ),
     getUserByEmail: db.prepare<[string], UserRow>(
-      `SELECT id, email, name, subscription_status, created_at FROM users WHERE email = ?`,
+      `SELECT id, email, name, subscription_status, created_at FROM users WHERE email = ?`
     ),
     getUserById: db.prepare<[string], UserRow>(
-      `SELECT id, email, name, subscription_status, created_at FROM users WHERE id = ?`,
+      `SELECT id, email, name, subscription_status, created_at FROM users WHERE id = ?`
     ),
   };
 
@@ -115,8 +110,7 @@ export function createLicenseRepository(db: Database.Database) {
       const row: Row<LicenseRow> = stmts.getLicense.get(key);
       if (!row) return null;
       if (row.status === "revoked") return "revoked";
-      if (row.expires_at && new Date(row.expires_at) < new Date())
-        return "expired";
+      if (row.expires_at && new Date(row.expires_at) < new Date()) return "expired";
       return "active";
     },
 

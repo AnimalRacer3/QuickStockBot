@@ -9,15 +9,11 @@ import type Database from "better-sqlite3";
 describe("generateLicenseKey", () => {
   it("matches QSB-XXXX-XXXX-XXXX-XXXX format", () => {
     const key = generateLicenseKey();
-    expect(key).toMatch(
-      /^QSB-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/,
-    );
+    expect(key).toMatch(/^QSB-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
   });
 
   it("generates unique keys across 1 000 iterations", () => {
-    const keys = new Set(
-      Array.from({ length: 1000 }, () => generateLicenseKey()),
-    );
+    const keys = new Set(Array.from({ length: 1000 }, () => generateLicenseKey()));
     expect(keys.size).toBe(1000);
   });
 });

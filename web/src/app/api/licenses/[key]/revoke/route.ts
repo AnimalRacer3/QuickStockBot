@@ -3,10 +3,7 @@ import { getDb } from "@/lib/db";
 import { createLicenseRepository } from "@/lib/license";
 
 /** PATCH /api/licenses/:key/revoke — admin endpoint to revoke a license. */
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ key: string }> },
-) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ key: string }> }) {
   const adminKey = process.env.ADMIN_API_KEY;
   if (adminKey) {
     const provided = req.headers.get("x-admin-key");
@@ -20,10 +17,7 @@ export async function PATCH(
   const revoked = repo.revokeLicense(key);
 
   if (!revoked) {
-    return NextResponse.json(
-      { error: "license not found or already revoked" },
-      { status: 404 },
-    );
+    return NextResponse.json({ error: "license not found or already revoked" }, { status: 404 });
   }
 
   return NextResponse.json({ key, status: "revoked" });

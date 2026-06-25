@@ -67,9 +67,7 @@ describe("buildLicenseEmail", () => {
 
 describe("sendLicenseEmail", () => {
   function makeMockClient(
-    response: Awaited<
-      ReturnType<ResendClient["emails"]["send"]>
-    >,
+    response: Awaited<ReturnType<ResendClient["emails"]["send"]>>
   ): ResendClient {
     return { emails: { send: vi.fn().mockResolvedValue(response) } };
   }
@@ -106,15 +104,13 @@ describe("sendLicenseEmail", () => {
       data: null,
       error: { message: "rate limited" },
     });
-    await expect(sendLicenseEmail(client, BASE_PAYLOAD)).rejects.toThrow(
-      "rate limited",
-    );
+    await expect(sendLicenseEmail(client, BASE_PAYLOAD)).rejects.toThrow("rate limited");
   });
 
   it("throws when Resend returns null data with no error message", async () => {
     const client = makeMockClient({ data: null, error: null });
     await expect(sendLicenseEmail(client, BASE_PAYLOAD)).rejects.toThrow(
-      "Failed to send license email",
+      "Failed to send license email"
     );
   });
 });
