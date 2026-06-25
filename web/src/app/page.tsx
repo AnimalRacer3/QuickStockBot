@@ -1,9 +1,5 @@
-import { Placeholder } from "@/components/Placeholder";
+import { redirect } from "next/navigation";
 
 export default function Home() {
-  return (
-    <main>
-      <Placeholder />
-    </main>
-  );
+  redirect("/connect");
 }
