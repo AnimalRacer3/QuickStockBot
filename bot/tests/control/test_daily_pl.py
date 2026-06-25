@@ -24,15 +24,17 @@ from tests.control.conftest import insert_order, insert_trade
 def _ts_for_date(date_str: str) -> int:
     d = datetime.date.fromisoformat(date_str)
     return int(
-        datetime.datetime(d.year, d.month, d.day, 12, 0, 0,
-                          tzinfo=datetime.timezone.utc).timestamp()
+        datetime.datetime(
+            d.year, d.month, d.day, 12, 0, 0, tzinfo=datetime.timezone.utc
+        ).timestamp()
     )
 
 
 def _add_trade_on(conn: sqlite3.Connection, date_str: str, net_pnl: float) -> None:
     oid = insert_order(conn)
-    insert_trade(conn, entry_order_id=oid, net_pnl=net_pnl,
-                 closed_at=_ts_for_date(date_str))
+    insert_trade(
+        conn, entry_order_id=oid, net_pnl=net_pnl, closed_at=_ts_for_date(date_str)
+    )
 
 
 # ─── Tests ────────────────────────────────────────────────────────────────────
@@ -86,7 +88,11 @@ class TestDailyPLColors:
         assert days == []
 
     def test_multi_day_range(self, db: sqlite3.Connection) -> None:
-        for date, pnl in [("2024-04-01", 100.0), ("2024-04-02", -50.0), ("2024-04-03", 0.0)]:
+        for date, pnl in [
+            ("2024-04-01", 100.0),
+            ("2024-04-02", -50.0),
+            ("2024-04-03", 0.0),
+        ]:
             mark_run_day(db, date)
             _add_trade_on(db, date, pnl)
 

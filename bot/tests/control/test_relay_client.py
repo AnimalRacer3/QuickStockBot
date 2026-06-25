@@ -54,15 +54,15 @@ def test_compute_proof_deterministic() -> None:
 
 def test_compute_proof_uses_hmac_sha256() -> None:
     nonce, password = "test-nonce", "my-password"
-    expected = hmac.new(
-        password.encode(), nonce.encode(), hashlib.sha256
-    ).hexdigest()
+    expected = hmac.new(password.encode(), nonce.encode(), hashlib.sha256).hexdigest()
     assert compute_connection_proof(nonce, password) == expected
 
 
 def test_wrong_password_gives_different_proof() -> None:
     nonce = "same-nonce"
-    assert compute_connection_proof(nonce, "correct") != compute_connection_proof(nonce, "wrong")
+    assert compute_connection_proof(nonce, "correct") != compute_connection_proof(
+        nonce, "wrong"
+    )
 
 
 @pytest.mark.anyio
@@ -78,7 +78,9 @@ async def test_auth_success_sends_register(db: sqlite3.Connection) -> None:
     payload = register["payload"]
     assert payload["bot_id"] == "test-bot"
     assert payload["license_key"] == "test-lic"
-    assert payload["connection_password_proof"] == compute_connection_proof(nonce, password)
+    assert payload["connection_password_proof"] == compute_connection_proof(
+        nonce, password
+    )
     assert "version" in payload
 
     socket.close()
@@ -86,7 +88,9 @@ async def test_auth_success_sends_register(db: sqlite3.Connection) -> None:
 
 
 @pytest.mark.anyio
-async def test_wrong_password_proof_differs_from_correct(db: sqlite3.Connection) -> None:
+async def test_wrong_password_proof_differs_from_correct(
+    db: sqlite3.Connection,
+) -> None:
     """Bot using the wrong password produces a proof that doesn't match the correct one."""
     nonce = "nonce-xyz"
     factory = MockSocketFactory(nonce)
@@ -112,11 +116,13 @@ async def test_dispatches_rpc_request(db: sqlite3.Connection) -> None:
     await socket.pull()  # consume register
 
     req_id = str(uuid.uuid4())
-    await socket.push({
-        "type": "rpc_request",
-        "id": req_id,
-        "payload": {"method": "get_active_tickers", "params": {}},
-    })
+    await socket.push(
+        {
+            "type": "rpc_request",
+            "id": req_id,
+            "payload": {"method": "get_active_tickers", "params": {}},
+        }
+    )
 
     response = await socket.pull()
     assert response["type"] == "rpc_response"
@@ -134,11 +140,13 @@ async def test_unknown_method_returns_error(db: sqlite3.Connection) -> None:
     await socket.pull()  # register
 
     req_id = str(uuid.uuid4())
-    await socket.push({
-        "type": "rpc_request",
-        "id": req_id,
-        "payload": {"method": "does_not_exist", "params": {}},
-    })
+    await socket.push(
+        {
+            "type": "rpc_request",
+            "id": req_id,
+            "payload": {"method": "does_not_exist", "params": {}},
+        }
+    )
 
     response = await socket.pull()
     assert response["payload"]["error"]["code"] == "UNKNOWN_METHOD"
@@ -155,11 +163,13 @@ async def test_rpc_response_shares_request_id(db: sqlite3.Connection) -> None:
     await socket.pull()  # register
 
     req_id = "deterministic-id-42"
-    await socket.push({
-        "type": "rpc_request",
-        "id": req_id,
-        "payload": {"method": "get_settings", "params": {}},
-    })
+    await socket.push(
+        {
+            "type": "rpc_request",
+            "id": req_id,
+            "payload": {"method": "get_settings", "params": {}},
+        }
+    )
 
     response = await socket.pull()
     assert response["id"] == req_id
@@ -189,8 +199,12 @@ async def test_auto_reconnect_after_disconnect(db: sqlite3.Connection) -> None:
 
     factory = CountingFactory()
     c = RelayClient(
-        url="ws://test", bot_id="b", license_key="l",
-        connection_password="p", db=db, socket_factory=factory,
+        url="ws://test",
+        bot_id="b",
+        license_key="l",
+        connection_password="p",
+        db=db,
+        socket_factory=factory,
     )
     c._backoff = 0.01  # fast retry for test
 
@@ -229,12 +243,16 @@ async def test_emit_log_after_subscribe(db: sqlite3.Connection) -> None:
     await socket.pull()  # register
 
     # Subscribe to logs
-    await socket.push({
-        "type": "rpc_request",
-        "id": str(uuid.uuid4()),
-        "payload": {"method": "subscribe_logs",
-                    "params": {"categories": [], "min_level": "info"}},
-    })
+    await socket.push(
+        {
+            "type": "rpc_request",
+            "id": str(uuid.uuid4()),
+            "payload": {
+                "method": "subscribe_logs",
+                "params": {"categories": [], "min_level": "info"},
+            },
+        }
+    )
     sub_resp = await socket.pull()
     assert sub_resp["payload"]["result"]["subscribed"] is True
 
@@ -257,12 +275,16 @@ async def test_emit_log_filtered_by_level(db: sqlite3.Connection) -> None:
     client, task, socket = await _start(db, factory)
     await socket.pull()  # register
 
-    await socket.push({
-        "type": "rpc_request",
-        "id": str(uuid.uuid4()),
-        "payload": {"method": "subscribe_logs",
-                    "params": {"categories": [], "min_level": "warning"}},
-    })
+    await socket.push(
+        {
+            "type": "rpc_request",
+            "id": str(uuid.uuid4()),
+            "payload": {
+                "method": "subscribe_logs",
+                "params": {"categories": [], "min_level": "warning"},
+            },
+        }
+    )
     await socket.pull()  # subscription ack
 
     # "debug" is below "warning" — must not be forwarded

@@ -95,11 +95,22 @@ class TestGetSettings:
     def test_returns_all_required_fields(self, db: sqlite3.Connection) -> None:
         result = handle_get_settings(db, {})
         for field in (
-            "bot_id", "relay_url", "license_key", "paper_trading",
-            "broker", "max_positions", "risk_per_trade_pct",
-            "daily_risk_pct", "risk_override_enabled",
-            "goal_post_trade_count", "min_score", "auto_trade",
-            "macd_fast", "macd_slow", "macd_signal", "log_level",
+            "bot_id",
+            "relay_url",
+            "license_key",
+            "paper_trading",
+            "broker",
+            "max_positions",
+            "risk_per_trade_pct",
+            "daily_risk_pct",
+            "risk_override_enabled",
+            "goal_post_trade_count",
+            "min_score",
+            "auto_trade",
+            "macd_fast",
+            "macd_slow",
+            "macd_signal",
+            "log_level",
         ):
             assert field in result, f"Missing field: {field}"
 
@@ -120,17 +131,20 @@ class TestUpdateSettings:
         # Enable override and set risk values explicitly
         handle_update_settings(
             db,
-            {"patch": {"risk_override_enabled": True, "daily_risk_pct": 6.0,
-                        "risk_per_trade_pct": 2.0}},
+            {
+                "patch": {
+                    "risk_override_enabled": True,
+                    "daily_risk_pct": 6.0,
+                    "risk_per_trade_pct": 2.0,
+                }
+            },
         )
         result = handle_get_settings(db, {})
         assert result["goal_post_trade_count"] == 3  # floor(6/2)
 
     def test_ignores_read_only_goal_post(self, db: sqlite3.Connection) -> None:
         # Sending goal_post_trade_count in patch must be silently ignored
-        result = handle_update_settings(
-            db, {"patch": {"goal_post_trade_count": 999}}
-        )
+        result = handle_update_settings(db, {"patch": {"goal_post_trade_count": 999}})
         assert result["goal_post_trade_count"] != 999
 
 
@@ -303,9 +317,7 @@ async def test_get_settings_round_trip(db: sqlite3.Connection) -> None:
 
 @pytest.mark.anyio
 async def test_update_settings_round_trip(db: sqlite3.Connection) -> None:
-    resp = await _rpc_roundtrip(
-        db, "update_settings", {"patch": {"min_score": 55.0}}
-    )
+    resp = await _rpc_roundtrip(db, "update_settings", {"patch": {"min_score": 55.0}})
     assert resp["payload"]["result"]["min_score"] == pytest.approx(55.0)
 
 
@@ -319,9 +331,7 @@ async def test_get_lists_round_trip(db: sqlite3.Connection) -> None:
 
 @pytest.mark.anyio
 async def test_update_lists_round_trip(db: sqlite3.Connection) -> None:
-    resp = await _rpc_roundtrip(
-        db, "update_lists", {"watchlist": ["AAPL", "TSLA"]}
-    )
+    resp = await _rpc_roundtrip(db, "update_lists", {"watchlist": ["AAPL", "TSLA"]})
     assert "AAPL" in resp["payload"]["result"]["watchlist"]
 
 

@@ -178,8 +178,19 @@ def insert_order(
            (id, symbol, side, order_type, quantity, limit_price,
             filled_price, filled_quantity, status, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (oid, symbol, side, order_type, quantity, limit_price,
-         filled_price, filled_quantity, status, now, now),
+        (
+            oid,
+            symbol,
+            side,
+            order_type,
+            quantity,
+            limit_price,
+            filled_price,
+            filled_quantity,
+            status,
+            now,
+            now,
+        ),
     )
     conn.commit()
     return oid
@@ -207,9 +218,21 @@ def insert_trade(
             entry_price, exit_price, quantity, net_pnl,
             fees, label, status, opened_at, closed_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        (tid, symbol, entry_order_id, exit_order_id,
-         entry_price, exit_price, 10.0, net_pnl,
-         0.0, label, status, now, closed_at or now),
+        (
+            tid,
+            symbol,
+            entry_order_id,
+            exit_order_id,
+            entry_price,
+            exit_price,
+            10.0,
+            net_pnl,
+            0.0,
+            label,
+            status,
+            now,
+            closed_at or now,
+        ),
     )
     conn.commit()
     return tid
@@ -236,8 +259,13 @@ def insert_ticker(
 
     now = int(time.time())
     default_macd_state = _json.dumps(
-        {"value": macd, "slope": 0.01, "hist": macd - signal,
-         "favorability": 0.8, "eligible": True}
+        {
+            "value": macd,
+            "slope": 0.01,
+            "hist": macd - signal,
+            "favorability": 0.8,
+            "eligible": True,
+        }
     )
     conn.execute(
         """INSERT OR REPLACE INTO active_tickers
@@ -246,10 +274,20 @@ def insert_ticker(
             pct_change, role, score, macd_state_json)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
-            symbol, price, volume, macd, signal, "watching", now,
-            rvol, float_shares, 1 if unknown_float else 0,
+            symbol,
+            price,
+            volume,
+            macd,
+            signal,
+            "watching",
+            now,
+            rvol,
+            float_shares,
+            1 if unknown_float else 0,
             1 if scanner_tradable else 0,
-            pct_change, role, score,
+            pct_change,
+            role,
+            score,
             macd_state_json or default_macd_state,
         ),
     )

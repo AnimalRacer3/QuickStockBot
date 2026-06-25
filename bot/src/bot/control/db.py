@@ -295,7 +295,9 @@ def get_daily_pl(db: sqlite3.Connection, start: str, end: str) -> list[dict]:
         except ValueError:
             continue
         day_start = int(
-            datetime.datetime(d.year, d.month, d.day, tzinfo=datetime.timezone.utc).timestamp()
+            datetime.datetime(
+                d.year, d.month, d.day, tzinfo=datetime.timezone.utc
+            ).timestamp()
         )
         day_end = day_start + 86400
 

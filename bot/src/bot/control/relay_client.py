@@ -79,7 +79,9 @@ class RelayClient:
             except asyncio.CancelledError:
                 break
             except Exception as exc:
-                logger.warning("Relay session ended: %s — retrying in %.0fs", exc, self._backoff)
+                logger.warning(
+                    "Relay session ended: %s — retrying in %.0fs", exc, self._backoff
+                )
                 await asyncio.sleep(self._backoff)
                 self._backoff = min(self._backoff * 2, 60.0)
 
@@ -122,7 +124,9 @@ class RelayClient:
         body: dict = {"tickers": tickers}
         if account:
             body["account"] = account
-        await self._send({"type": "state_update", "id": str(uuid.uuid4()), "payload": body})
+        await self._send(
+            {"type": "state_update", "id": str(uuid.uuid4()), "payload": body}
+        )
 
     # ── Internal ────────────────────────────────────────────────────────────
 
@@ -175,7 +179,9 @@ class RelayClient:
                 "payload": {"result": result},
             }
         except KeyError:
-            return self._error_response(request_id, "UNKNOWN_METHOD", f"Unknown method: {method}")
+            return self._error_response(
+                request_id, "UNKNOWN_METHOD", f"Unknown method: {method}"
+            )
         except ValueError as exc:
             return self._error_response(request_id, "INVALID_PARAMS", str(exc))
         except Exception as exc:

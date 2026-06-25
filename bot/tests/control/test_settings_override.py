@@ -41,7 +41,9 @@ class TestOverrideOff:
         settings = _get(db)
         assert settings["risk_per_trade_pct"] == pytest.approx(10.0 / 5)
 
-    def test_patch_per_trade_ignored_when_override_off(self, db: sqlite3.Connection) -> None:
+    def test_patch_per_trade_ignored_when_override_off(
+        self, db: sqlite3.Connection
+    ) -> None:
         _set(db, daily_risk_pct=10.0, max_positions=5)
         # Try to set per-trade to 99 — should be silently ignored
         result = _set(db, risk_per_trade_pct=99.0)
@@ -61,8 +63,9 @@ class TestOverrideOff:
 
 class TestOverrideOn:
     def test_can_set_per_trade_when_override_on(self, db: sqlite3.Connection) -> None:
-        _set(db, risk_override_enabled=True, daily_risk_pct=10.0,
-             risk_per_trade_pct=2.0)
+        _set(
+            db, risk_override_enabled=True, daily_risk_pct=10.0, risk_per_trade_pct=2.0
+        )
         settings = _get(db)
         assert settings["risk_override_enabled"] is True
         assert settings["risk_per_trade_pct"] == pytest.approx(2.0)
@@ -78,23 +81,20 @@ class TestOverrideOn:
             _set(db, risk_per_trade_pct=6.0)
 
     def test_accepts_per_trade_below_daily(self, db: sqlite3.Connection) -> None:
-        _set(db, risk_override_enabled=True, daily_risk_pct=5.0,
-             risk_per_trade_pct=1.5)
+        _set(db, risk_override_enabled=True, daily_risk_pct=5.0, risk_per_trade_pct=1.5)
         settings = _get(db)
         assert settings["risk_per_trade_pct"] == pytest.approx(1.5)
 
     def test_goal_post_computed_from_override_value(
         self, db: sqlite3.Connection
     ) -> None:
-        _set(db, risk_override_enabled=True, daily_risk_pct=9.0,
-             risk_per_trade_pct=3.0)
+        _set(db, risk_override_enabled=True, daily_risk_pct=9.0, risk_per_trade_pct=3.0)
         settings = _get(db)
         assert settings["goal_post_trade_count"] == 3  # floor(9/3)
 
     def test_goal_post_is_always_at_least_one(self, db: sqlite3.Connection) -> None:
         # Per-trade just barely below daily → goal_post = 1
-        _set(db, risk_override_enabled=True, daily_risk_pct=5.0,
-             risk_per_trade_pct=4.9)
+        _set(db, risk_override_enabled=True, daily_risk_pct=5.0, risk_per_trade_pct=4.9)
         settings = _get(db)
         assert settings["goal_post_trade_count"] >= 1
 
@@ -105,8 +105,9 @@ class TestOverrideOn:
 class TestOverrideToggle:
     def test_disable_override_locks_per_trade(self, db: sqlite3.Connection) -> None:
         # Enable override and set a custom value
-        _set(db, risk_override_enabled=True, daily_risk_pct=10.0,
-             risk_per_trade_pct=3.0)
+        _set(
+            db, risk_override_enabled=True, daily_risk_pct=10.0, risk_per_trade_pct=3.0
+        )
         # Disable override
         _set(db, risk_override_enabled=False)
         settings = _get(db)
