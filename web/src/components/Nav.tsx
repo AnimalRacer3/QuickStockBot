@@ -19,24 +19,24 @@ export function Nav() {
         </Link>
 
         <nav className="hidden sm:flex items-center gap-1 text-sm text-ink-muted">
-          <a
+          <Link
             href="/#how-it-works"
             className="px-3 py-1.5 rounded-lg hover:text-ink hover:bg-white/5 transition-all"
           >
             How it works
-          </a>
-          <a
+          </Link>
+          <Link
             href="/#features"
             className="px-3 py-1.5 rounded-lg hover:text-ink hover:bg-white/5 transition-all"
           >
             Features
-          </a>
-          <a
+          </Link>
+          <Link
             href="/#pricing"
             className="px-3 py-1.5 rounded-lg hover:text-ink hover:bg-white/5 transition-all"
           >
             Pricing
-          </a>
+          </Link>
         </nav>
 
         <div className="flex items-center gap-2">
