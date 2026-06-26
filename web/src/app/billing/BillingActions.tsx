@@ -5,11 +5,12 @@ import { useState } from "react";
 interface Props {
   status: string | null;
   hasCustomer: boolean;
+  prices: { basic: string | null; premium: string | null };
 }
 
 type Plan = "basic" | "premium";
 
-export default function BillingActions({ status, hasCustomer }: Props) {
+export default function BillingActions({ status, hasCustomer, prices }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPlanPicker, setShowPlanPicker] = useState(false);
@@ -57,7 +58,7 @@ export default function BillingActions({ status, hasCustomer }: Props) {
       {needsCheckout && (
         <>
           <button onClick={() => startCheckout(true)} disabled={loading} style={styles.primaryBtn}>
-            {loading ? "Loading…" : "Start 1-month free trial"}
+            {loading ? "Loading…" : "Start 1-month free trial of Premium"}
           </button>
 
           {!showPlanPicker ? (
@@ -77,8 +78,13 @@ export default function BillingActions({ status, hasCustomer }: Props) {
                   disabled={loading}
                   style={styles.planBtn}
                 >
-                  <span style={styles.planName}>Basic</span>
-                  <span style={styles.planDesc}>Core features</span>
+                  <span style={{ ...styles.planName, color: "#0070f3" }}>Basic</span>
+                  <span style={{ ...styles.planDesc, color: "#0070f3" }}>Core features</span>
+                  {prices.basic && (
+                    <span style={{ ...styles.planPrice, color: "#0070f3" }}>
+                      {prices.basic}/month
+                    </span>
+                  )}
                 </button>
                 <button
                   onClick={() => startCheckout(false, "premium")}
@@ -87,6 +93,7 @@ export default function BillingActions({ status, hasCustomer }: Props) {
                 >
                   <span style={styles.planName}>Premium</span>
                   <span style={styles.planDesc}>All features</span>
+                  {prices.premium && <span style={styles.planPrice}>{prices.premium}/month</span>}
                 </button>
               </div>
               <button
@@ -159,6 +166,7 @@ const styles = {
   },
   planName: { fontSize: 14, fontWeight: 600 },
   planDesc: { fontSize: 12, opacity: 0.75 },
+  planPrice: { fontSize: 12, fontWeight: 600, marginTop: 4 },
   cancelLink: {
     background: "none",
     border: "none",

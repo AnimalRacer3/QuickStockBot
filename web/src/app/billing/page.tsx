@@ -3,7 +3,35 @@ import { redirect } from "next/navigation";
 import { verifySession, SESSION_COOKIE } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { statusLabel } from "@/lib/subscription";
+import { stripe, STRIPE_PRICE_ID_BASIC, STRIPE_PRICE_ID_PREMIUM } from "@/lib/stripe";
+import type Stripe from "stripe";
 import BillingActions from "./BillingActions";
+
+function formatPrice(price: Stripe.Price): string | null {
+  if (!price.unit_amount) return null;
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: price.currency,
+  }).format(price.unit_amount / 100);
+}
+
+async function fetchPlanPrices(): Promise<{ basic: string | null; premium: string | null }> {
+  async function safeRetrieve(priceId: string): Promise<string | null> {
+    if (!priceId || !priceId.startsWith("price_")) return null;
+    try {
+      const price = await stripe.prices.retrieve(priceId);
+      return formatPrice(price);
+    } catch {
+      return null;
+    }
+  }
+
+  const [basic, premium] = await Promise.all([
+    safeRetrieve(STRIPE_PRICE_ID_BASIC),
+    safeRetrieve(STRIPE_PRICE_ID_PREMIUM),
+  ]);
+  return { basic, premium };
+}
 
 export default async function BillingPage() {
   const cookieStore = await cookies();
@@ -11,15 +39,18 @@ export default async function BillingPage() {
   const session = token ? await verifySession(token) : null;
   if (!session?.userId) redirect("/login");
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.userId },
-    select: {
-      subscriptionStatus: true,
-      trialEnd: true,
-      currentPeriodEnd: true,
-      stripeCustomerId: true,
-    },
-  });
+  const [user, prices] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: session.userId },
+      select: {
+        subscriptionStatus: true,
+        trialEnd: true,
+        currentPeriodEnd: true,
+        stripeCustomerId: true,
+      },
+    }),
+    fetchPlanPrices(),
+  ]);
 
   const status = user?.subscriptionStatus ?? null;
   const trialEnd = user?.trialEnd ? new Date(user.trialEnd) : null;
@@ -64,7 +95,7 @@ export default async function BillingPage() {
           </p>
         )}
 
-        <BillingActions status={status} hasCustomer={hasCustomer} />
+        <BillingActions status={status} hasCustomer={hasCustomer} prices={prices} />
       </div>
     </div>
   );

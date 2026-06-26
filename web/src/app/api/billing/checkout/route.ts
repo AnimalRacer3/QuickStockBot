@@ -6,6 +6,7 @@ import {
   STRIPE_PRICE_ID_PREMIUM,
   STRIPE_PRICE_ID_BASIC,
   TRIAL_PERIOD_DAYS,
+  assertPriceId,
 } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 import { getBaseUrl } from "@/lib/url";
@@ -27,12 +28,11 @@ export async function POST(request: NextRequest) {
   const plan = trial ? "premium" : (body.plan ?? "premium");
   const priceId = plan === "basic" ? STRIPE_PRICE_ID_BASIC : STRIPE_PRICE_ID_PREMIUM;
 
-  if (!priceId) {
-    const label = plan === "basic" ? "STRIPE_PRICE_ID_BASIC" : "STRIPE_PRICE_ID_PREMIUM";
-    return NextResponse.json(
-      { error: `Billing is not configured (missing ${label})` },
-      { status: 500 }
-    );
+  const priceLabel = plan === "basic" ? "STRIPE_PRICE_ID_BASIC" : "STRIPE_PRICE_ID_PREMIUM";
+  try {
+    assertPriceId(priceId, priceLabel);
+  } catch (err) {
+    return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }
 
   const user = await prisma.user.findUnique({
