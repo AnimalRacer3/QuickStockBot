@@ -1,7 +1,7 @@
 import { RelayServer } from "./server.js";
 import { logger } from "./logger.js";
 
-const PORT = parseInt(process.env.RELAY_PORT ?? "8080", 10);
+const PORT = parseInt(process.env.PORT ?? process.env.RELAY_PORT ?? "8080", 10);
 // In production (Railway), bind to 0.0.0.0 so the ingress can route traffic.
 // Set RELAY_HOST=127.0.0.1 in dev to restrict to localhost only.
 const HOST = process.env.RELAY_HOST ?? "0.0.0.0";
