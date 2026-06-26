@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { signSession, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/auth";
 
-const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
 export async function GET(req: NextRequest) {
   const token = new URL(req.url).searchParams.get("token");

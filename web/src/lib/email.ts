@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 
 const FROM = process.env.RESEND_FROM ?? "noreply@quickstockbot.com";
-const BASE_URL = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
 function getResend(): Resend {
   return new Resend(process.env.RESEND_API_KEY);

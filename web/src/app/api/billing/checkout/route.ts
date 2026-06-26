@@ -20,7 +20,7 @@ export async function POST() {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
   const checkoutSession = await stripe.checkout.sessions.create({
     mode: "subscription",

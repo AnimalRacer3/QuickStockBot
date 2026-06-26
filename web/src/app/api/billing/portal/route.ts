@@ -20,7 +20,7 @@ export async function POST() {
     return NextResponse.json({ error: "No billing account found" }, { status: 400 });
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? "http://localhost:3000";
+  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
