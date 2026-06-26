@@ -1,2 +1,5 @@
 [phases.setup]
 aptPkgs = ['python3', 'python3-dev', 'build-essential']
+
+[start]
+cmd = "CHECKPOINT_DISABLE=1 node node_modules/prisma/build/index.js db push && node_modules/.bin/next start -p ${PORT:-3000}"
