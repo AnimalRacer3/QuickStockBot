@@ -58,7 +58,7 @@ export function Pricing() {
               <div className="flex flex-col gap-3 pt-2 mt-auto">
                 <Button
                   href="/signup?plan=basic"
-                  variant="secondary"
+                  variant="outline"
                   size="lg"
                   className="w-full justify-center"
                   data-testid="pricing-cta-basic"
