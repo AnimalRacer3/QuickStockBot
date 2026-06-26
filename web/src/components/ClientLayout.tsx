@@ -35,7 +35,7 @@ export function ClientLayout({
         <>
           <DashboardNav />
           <DisclaimerBanner />
-          <main style={{ padding: "24px" }}>{children}</main>
+          <main className="p-6 pb-20 sm:pb-6">{children}</main>
         </>
       ) : (
         <>
