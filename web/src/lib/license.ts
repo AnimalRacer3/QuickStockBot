@@ -46,6 +46,11 @@ export function createLicenseRepository(db: Database.Database) {
     getLicense: db.prepare<[string], LicenseRow>(
       `SELECT key, user_id, status, issued_at, expires_at FROM licenses WHERE key = ?`
     ),
+    getByUserId: db.prepare<[string], LicenseRow>(
+      `SELECT key, user_id, status, issued_at, expires_at FROM licenses
+       WHERE user_id = ? AND status = 'active'
+       ORDER BY issued_at DESC LIMIT 1`
+    ),
     updateStatus: db.prepare(`UPDATE licenses SET status = ? WHERE key = ? AND status != ?`),
   };
 
@@ -83,6 +88,11 @@ export function createLicenseRepository(db: Database.Database) {
 
     getLicense(key: string): License | null {
       const row = stmts.getLicense.get(key);
+      return row ? rowToLicense(row) : null;
+    },
+
+    getLicenseByUserId(userId: string): License | null {
+      const row = stmts.getByUserId.get(userId);
       return row ? rowToLicense(row) : null;
     },
   };
