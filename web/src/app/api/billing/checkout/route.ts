@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { verifySession, SESSION_COOKIE } from "@/lib/session";
 import { stripe, STRIPE_PRICE_ID, TRIAL_PERIOD_DAYS } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
+import { getBaseUrl } from "@/lib/url";
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const baseUrl = getBaseUrl();
 
   try {
     const checkoutSession = await stripe.checkout.sessions.create({

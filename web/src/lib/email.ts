@@ -1,7 +1,8 @@
 import { Resend } from "resend";
 
+import { getBaseUrl } from "@/lib/url";
+
 const FROM = process.env.RESEND_FROM ?? "noreply@quickstockbot.com";
-const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
 function getResend(): Resend {
   return new Resend(process.env.RESEND_API_KEY);
@@ -10,7 +11,7 @@ function getResend(): Resend {
 // ── Auth email (Section 10) ───────────────────────────────────────────────────
 
 export async function sendVerificationEmail(email: string, token: string): Promise<void> {
-  const verifyUrl = `${BASE_URL}/api/auth/verify-email?token=${token}`;
+  const verifyUrl = `${getBaseUrl()}/api/auth/verify-email?token=${token}`;
   await getResend().emails.send({
     from: FROM,
     to: email,
