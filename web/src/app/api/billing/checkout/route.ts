@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifySession, SESSION_COOKIE } from "@/lib/session";
-import { stripe, STRIPE_PRICE_ID, TRIAL_PERIOD_DAYS } from "@/lib/stripe";
+import {
+  stripe,
+  STRIPE_PRICE_ID_PREMIUM,
+  STRIPE_PRICE_ID_BASIC,
+  TRIAL_PERIOD_DAYS,
+} from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 import { getBaseUrl } from "@/lib/url";
 
@@ -13,15 +18,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!STRIPE_PRICE_ID) {
+  const body = (await request.json().catch(() => ({}))) as {
+    trial?: boolean;
+    plan?: "basic" | "premium";
+  };
+  const trial = body.trial === true;
+  // Trial always uses premium; paid checkout uses whichever plan the user chose (default premium)
+  const plan = trial ? "premium" : (body.plan ?? "premium");
+  const priceId = plan === "basic" ? STRIPE_PRICE_ID_BASIC : STRIPE_PRICE_ID_PREMIUM;
+
+  if (!priceId) {
+    const label = plan === "basic" ? "STRIPE_PRICE_ID_BASIC" : "STRIPE_PRICE_ID_PREMIUM";
     return NextResponse.json(
-      { error: "Billing is not configured (missing STRIPE_PRICE_ID)" },
+      { error: `Billing is not configured (missing ${label})` },
       { status: 500 }
     );
   }
-
-  const body = (await request.json().catch(() => ({}))) as { trial?: boolean };
-  const trial = body.trial === true;
 
   const user = await prisma.user.findUnique({
     where: { id: session.userId },
@@ -39,7 +51,7 @@ export async function POST(request: NextRequest) {
       payment_method_types: ["card"],
       customer_email: user.stripeCustomerId ? undefined : user.email,
       customer: user.stripeCustomerId ?? undefined,
-      line_items: [{ price: STRIPE_PRICE_ID, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       subscription_data: {
         ...(trial ? { trial_period_days: TRIAL_PERIOD_DAYS } : {}),
         metadata: { userId: user.id },
