@@ -3,7 +3,15 @@ import { redirect } from "next/navigation";
 import { verifySession, SESSION_COOKIE } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { isAccessAllowed, statusLabel } from "@/lib/subscription";
+import { getLicenseDb } from "@/lib/license-db";
+import { createLicenseRepository } from "@/lib/license";
 import Link from "next/link";
+import { BotConnectionCard } from "./BotConnectionCard";
+import { CopyButton } from "./CopyButton";
+import { ResendLicenseButton } from "./ResendLicenseButton";
+
+const DOWNLOAD_URL =
+  process.env.BOT_DOWNLOAD_URL ?? "https://download.quickstockbot.com/bot/latest";
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -30,6 +38,9 @@ export default async function DashboardPage() {
   const trialEnd = user.trialEnd ? new Date(user.trialEnd) : null;
   const periodEnd = user.currentPeriodEnd ? new Date(user.currentPeriodEnd) : null;
 
+  const repo = createLicenseRepository(getLicenseDb());
+  const license = repo.getLicenseByUserId(session.userId);
+
   return (
     <div className="min-h-screen flex flex-col pt-16">
       <div className="flex-1 px-6 py-10 max-w-4xl mx-auto w-full">
@@ -40,6 +51,7 @@ export default async function DashboardPage() {
           </Link>
         </div>
 
+        {/* Subscription status */}
         <div className="rounded-xl border border-border bg-surface p-4 mb-8 flex items-center gap-3">
           <span className="text-sm text-ink-muted">Subscription:</span>
           <span className="font-semibold text-sm">{statusLabel(user.subscriptionStatus)}</span>
@@ -55,8 +67,45 @@ export default async function DashboardPage() {
           )}
         </div>
 
-        <div className="rounded-xl border-2 border-dashed border-border p-12 text-center text-ink-muted">
-          <p>Bot controls and live trading data will appear here.</p>
+        {/* Connect your bot */}
+        <BotConnectionCard />
+
+        {/* Account → License */}
+        <div className="rounded-xl border border-border bg-surface p-6 mb-6">
+          <h2 className="font-semibold text-ink mb-1">Account → License</h2>
+          {license ? (
+            <div className="flex flex-col gap-3">
+              <p className="text-sm text-ink-muted">
+                Your license key is shown below and was also sent to{" "}
+                <strong className="text-ink">{user.email}</strong>. Paste it into the bot&apos;s
+                setup wizard when prompted.
+              </p>
+              <div className="flex items-center gap-3 flex-wrap">
+                <code className="font-mono text-sm bg-bg-card px-3 py-2 rounded-lg border border-border text-ink tracking-wider">
+                  {license.key}
+                </code>
+                <CopyButton text={license.key} />
+              </div>
+            </div>
+          ) : (
+            <ResendLicenseButton userId={session.userId} />
+          )}
+        </div>
+
+        {/* Download the bot */}
+        <div className="rounded-xl border border-border bg-surface p-6">
+          <h2 className="font-semibold text-ink mb-1">Download the bot</h2>
+          <p className="text-sm text-ink-muted mb-3">
+            Download the QuickStockBot installer for your platform and run it to launch the setup
+            wizard.
+          </p>
+          <a
+            href={DOWNLOAD_URL}
+            className="text-sm text-accent hover:underline font-semibold"
+            rel="noopener noreferrer"
+          >
+            Download latest installer →
+          </a>
         </div>
       </div>
     </div>
