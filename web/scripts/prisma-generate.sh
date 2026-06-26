@@ -21,7 +21,7 @@ download_if_missing() {
     if [ -n "${NODE_EXTRA_CA_CERTS:-}" ]; then
       CA_ARGS="--cacert ${NODE_EXTRA_CA_CERTS}"
     fi
-    curl -sL $PROXY_ARGS $CA_ARGS "${BASE_URL}/${name}.gz" | gunzip > "$dest"
+    curl --connect-timeout 30 --max-time 300 -sL $PROXY_ARGS $CA_ARGS "${BASE_URL}/${name}.gz" | gunzip > "$dest"
     chmod +x "$dest"
   fi
 }
