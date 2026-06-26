@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { verifySession, SESSION_COOKIE } from "@/lib/session";
 import { stripe } from "@/lib/stripe";
 import { prisma } from "@/lib/db";
+import { getBaseUrl } from "@/lib/url";
 
 export async function POST() {
   const cookieStore = await cookies();
@@ -20,7 +21,7 @@ export async function POST() {
     return NextResponse.json({ error: "No billing account found" }, { status: 400 });
   }
 
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const baseUrl = getBaseUrl();
 
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: user.stripeCustomerId,
