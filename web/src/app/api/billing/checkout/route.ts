@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { verifySession, SESSION_COOKIE } from "@/lib/session";
-import { stripe, STRIPE_PRICE_ID_PREMIUM, STRIPE_PRICE_ID_BASIC, TRIAL_PERIOD_DAYS } from "@/lib/stripe";
+import {
+  stripe,
+  STRIPE_PRICE_ID_PREMIUM,
+  STRIPE_PRICE_ID_BASIC,
+  TRIAL_PERIOD_DAYS,
+} from "@/lib/stripe";
 import { prisma } from "@/lib/db";
 
 export async function POST(request: NextRequest) {

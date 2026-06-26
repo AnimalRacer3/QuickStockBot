@@ -56,11 +56,7 @@ export default function BillingActions({ status, hasCustomer }: Props) {
 
       {needsCheckout && (
         <>
-          <button
-            onClick={() => startCheckout(true)}
-            disabled={loading}
-            style={styles.primaryBtn}
-          >
+          <button onClick={() => startCheckout(true)} disabled={loading} style={styles.primaryBtn}>
             {loading ? "Loading…" : "Start 1-month free trial"}
           </button>
 
