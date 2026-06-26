@@ -91,7 +91,7 @@ test("active subscription grants dashboard access", async ({ page, request }) =>
   await login(page);
   await page.waitForURL(/\/(billing|dashboard)/);
   await expect(page).toHaveURL(/\/dashboard/);
-  await expect(page.getByText("Active")).toBeVisible();
+  await expect(page.getByText("Active", { exact: true })).toBeVisible();
 });
 
 // ─── Cancellation → access revoked ───────────────────────────────────────
