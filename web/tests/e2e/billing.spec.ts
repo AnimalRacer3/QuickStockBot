@@ -111,7 +111,7 @@ test("canceled subscription blocks dashboard access and shows billing page", asy
   await login(page);
   await expect(page).toHaveURL(/\/billing/);
   await expect(page.getByText("Canceled", { exact: true })).toBeVisible();
-  await expect(page.getByText("Start free trial")).toBeVisible();
+  await expect(page.getByText("Start 1-month free trial")).toBeVisible();
 });
 
 test("navigating to /dashboard after cancel redirects to /billing", async ({ page, request }) => {

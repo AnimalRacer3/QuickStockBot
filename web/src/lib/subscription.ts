@@ -8,6 +8,9 @@ export type SubscriptionStatus =
   | "unpaid"
   | null;
 
+// Access is determined solely by subscriptionStatus written by Stripe webhooks.
+// The trialRecord table is used only for IP-based trial deduplication at signup,
+// not for access control.
 export function isAccessAllowed(status: string | null | undefined): boolean {
   return status === "trialing" || status === "active";
 }

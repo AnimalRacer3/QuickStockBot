@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { signSession, SESSION_COOKIE, SESSION_TTL_SECONDS } from "@/lib/auth";
 
 const BASE_URL = process.env.NEXTAUTH_URL || "http://localhost:3000";
 
@@ -18,37 +17,18 @@ export async function GET(req: NextRequest) {
   }
 
   if (user.emailVerified) {
-    return NextResponse.redirect(new URL("/dashboard", BASE_URL));
+    // Already verified; redirect to login so the user authenticates themselves.
+    return NextResponse.redirect(new URL("/login?verified=1", BASE_URL));
   }
 
-  const trialStart = new Date();
-  const trialEnd = new Date(trialStart);
-  trialEnd.setMonth(trialEnd.getMonth() + 1);
-
-  await prisma.$transaction([
-    prisma.user.update({
-      where: { id: user.id },
-      data: { emailVerified: true, verifyToken: null, verifyTokenExpiry: null },
-    }),
-    prisma.trialRecord.update({
-      where: { userId: user.id },
-      data: { trialStart, trialEnd },
-    }),
-  ]);
-
-  const jwt = await signSession({
-    userId: user.id,
-    email: user.email,
-    emailVerified: true,
+  // Access is gated on subscriptionStatus written by Stripe webhooks, not on
+  // trialRecord. The trialRecord (created at signup) is kept only for IP-based
+  // trial deduplication; we do not set trial dates here.
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { emailVerified: true, verifyToken: null, verifyTokenExpiry: null },
   });
 
-  const res = NextResponse.redirect(new URL("/dashboard", BASE_URL));
-  res.cookies.set(SESSION_COOKIE, jwt, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: SESSION_TTL_SECONDS,
-    path: "/",
-  });
-  return res;
+  // Do not set a session cookie — the user must log in themselves.
+  return NextResponse.redirect(new URL("/login?verified=1", BASE_URL));
 }

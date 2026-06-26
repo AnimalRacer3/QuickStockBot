@@ -11,10 +11,14 @@ export default function BillingActions({ status, hasCustomer }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function startCheckout() {
+  async function startCheckout(trial: boolean) {
     setError("");
     setLoading(true);
-    const res = await fetch("/api/billing/checkout", { method: "POST" });
+    const res = await fetch("/api/billing/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trial }),
+    });
     setLoading(false);
     if (res.ok) {
       const data = (await res.json()) as { url?: string };
@@ -47,9 +51,18 @@ export default function BillingActions({ status, hasCustomer }: Props) {
     <div style={styles.actions}>
       {error && <p style={styles.error}>{error}</p>}
       {needsCheckout && (
-        <button onClick={startCheckout} disabled={loading} style={styles.primaryBtn}>
-          {loading ? "Loading…" : "Start free trial"}
-        </button>
+        <>
+          <button onClick={() => startCheckout(true)} disabled={loading} style={styles.primaryBtn}>
+            {loading ? "Loading…" : "Start 1-month free trial"}
+          </button>
+          <button
+            onClick={() => startCheckout(false)}
+            disabled={loading}
+            style={styles.secondaryBtn}
+          >
+            {loading ? "Loading…" : "Subscribe now — skip the trial"}
+          </button>
+        </>
       )}
       {needsPortal && (
         <button onClick={openPortal} disabled={loading} style={styles.secondaryBtn}>

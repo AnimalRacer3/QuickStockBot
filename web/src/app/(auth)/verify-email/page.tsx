@@ -32,7 +32,10 @@ export default function VerifyEmailPage() {
 
         <p className="text-sm text-ink-muted">
           Already verified?{" "}
-          <Link href="/login" className="text-primary hover:text-primary-hover font-medium transition-colors">
+          <Link
+            href="/login"
+            className="text-primary hover:text-primary-hover font-medium transition-colors"
+          >
             Log in
           </Link>
         </p>
