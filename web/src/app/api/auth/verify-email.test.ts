@@ -13,6 +13,7 @@ vi.mock("@/lib/db", () => ({
 
 import { prisma } from "@/lib/db";
 const mockUserFind = prisma.user.findUnique as unknown as ReturnType<typeof vi.fn>;
+const mockUserUpdate = prisma.user.update as unknown as ReturnType<typeof vi.fn>;
 const mockTransaction = prisma.$transaction as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => vi.clearAllMocks());
@@ -54,7 +55,7 @@ describe("Email verification", () => {
     expect(res.headers.get("location")).toContain("expired-token");
   });
 
-  it("verifies email, starts trial, and redirects to /dashboard", async () => {
+  it("verifies email and redirects to /login?verified=1", async () => {
     mockUserFind.mockResolvedValue({
       id: "u1",
       email: "a@b.com",
@@ -62,19 +63,19 @@ describe("Email verification", () => {
       verifyToken: "valid-token",
       verifyTokenExpiry: new Date(Date.now() + 60_000),
     });
-    mockTransaction.mockResolvedValue([{}, {}]);
+    mockUserUpdate.mockResolvedValue({});
 
     const { GET } = await import("./verify-email/route");
     const res = await GET(makeReq("valid-token"));
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/dashboard");
-    expect(mockTransaction).toHaveBeenCalledOnce();
-    // Session cookie should be set
+    expect(res.headers.get("location")).toContain("/login");
+    expect(res.headers.get("location")).toContain("verified=1");
+    // No session cookie — user must log in themselves
     const setCookie = res.headers.get("set-cookie");
-    expect(setCookie).toContain("qsb-session");
+    expect(setCookie).toBeNull();
   });
 
-  it("redirects already-verified users to /dashboard without re-processing", async () => {
+  it("redirects already-verified users to /login?verified=1 without re-processing", async () => {
     mockUserFind.mockResolvedValue({
       id: "u1",
       email: "a@b.com",
@@ -85,7 +86,8 @@ describe("Email verification", () => {
     const { GET } = await import("./verify-email/route");
     const res = await GET(makeReq("old-token"));
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toContain("/dashboard");
+    expect(res.headers.get("location")).toContain("/login");
+    expect(res.headers.get("location")).toContain("verified=1");
     expect(mockTransaction).not.toHaveBeenCalled();
   });
 });

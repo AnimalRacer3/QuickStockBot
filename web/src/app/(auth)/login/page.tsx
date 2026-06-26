@@ -12,6 +12,7 @@ function LoginForm() {
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [verified] = useState(() => params.get("verified") === "1");
   const [error, setError] = useState(() => {
     const e = params.get("error");
     if (e === "invalid-token") return "Invalid verification link.";
@@ -70,6 +71,12 @@ function LoginForm() {
       <div className="w-full max-w-sm bg-bg-card border border-border rounded-2xl p-8">
         <h1 className="text-2xl font-bold text-ink mb-1">Welcome back</h1>
         <p className="text-ink-muted text-sm mb-8">Sign in to your account</p>
+
+        {verified && (
+          <p role="status" className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3.5 py-2.5 mb-4">
+            Your email is verified — please log in.
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
