@@ -25,13 +25,20 @@ function LoginForm() {
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await res.json();
+    let res: Response;
+    let data: { error?: string; emailVerified?: boolean } = {};
+    try {
+      res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      data = await res.json();
+    } catch {
+      setLoading(false);
+      setError("Unable to reach the server. Please try again.");
+      return;
+    }
     setLoading(false);
 
     if (!res.ok) {
@@ -75,9 +82,10 @@ function LoginForm() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
               autoComplete="email"
               placeholder="you@example.com"
-              className="w-full px-3.5 py-2.5 rounded-lg bg-bg border border-border-strong text-ink placeholder:text-ink-subtle text-sm focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-colors"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-bg border border-border-strong text-ink placeholder:text-ink-subtle text-sm focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -91,9 +99,10 @@ function LoginForm() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={loading}
               autoComplete="current-password"
               placeholder="••••••••"
-              className="w-full px-3.5 py-2.5 rounded-lg bg-bg border border-border-strong text-ink placeholder:text-ink-subtle text-sm focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-colors"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-bg border border-border-strong text-ink placeholder:text-ink-subtle text-sm focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 

@@ -38,17 +38,23 @@ export async function POST(req: NextRequest) {
   const verifyToken = generateToken();
   const verifyTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  const user = await prisma.user.create({
-    data: {
-      email,
-      passwordHash,
-      verifyToken,
-      verifyTokenExpiry,
-      trialRecord: {
-        create: { email, signupIp: clientIp },
+  let user: { id: string };
+  try {
+    user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        verifyToken,
+        verifyTokenExpiry,
+        trialRecord: {
+          create: { email, signupIp: clientIp },
+        },
       },
-    },
-  });
+    });
+  } catch (err) {
+    console.error("Failed to create user:", err);
+    return NextResponse.json({ error: "Failed to create account" }, { status: 500 });
+  }
 
   try {
     await sendVerificationEmail(email, verifyToken);

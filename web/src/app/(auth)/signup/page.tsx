@@ -18,13 +18,20 @@ export default function SignupPage() {
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await res.json();
+    let res: Response;
+    let data: { error?: string; success?: boolean } = {};
+    try {
+      res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      data = await res.json();
+    } catch {
+      setLoading(false);
+      setError("Unable to reach the server. Please try again.");
+      return;
+    }
     setLoading(false);
 
     if (!res.ok) {
@@ -64,9 +71,10 @@ export default function SignupPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={loading}
               autoComplete="email"
               placeholder="you@example.com"
-              className="w-full px-3.5 py-2.5 rounded-lg bg-bg border border-border-strong text-ink placeholder:text-ink-subtle text-sm focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-colors"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-bg border border-border-strong text-ink placeholder:text-ink-subtle text-sm focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
@@ -81,9 +89,10 @@ export default function SignupPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               minLength={8}
+              disabled={loading}
               autoComplete="new-password"
               placeholder="Min. 8 characters"
-              className="w-full px-3.5 py-2.5 rounded-lg bg-bg border border-border-strong text-ink placeholder:text-ink-subtle text-sm focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-colors"
+              className="w-full px-3.5 py-2.5 rounded-lg bg-bg border border-border-strong text-ink placeholder:text-ink-subtle text-sm focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             />
           </div>
 
