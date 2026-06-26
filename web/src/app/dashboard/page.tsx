@@ -67,6 +67,23 @@ export default async function DashboardPage() {
           )}
         </div>
 
+        {/* Connection board CTA */}
+        <Link
+          href="/connect"
+          className="rounded-xl border border-accent bg-surface p-6 mb-6 flex items-center justify-between gap-4 hover:bg-bg-card transition-colors group block"
+        >
+          <div>
+            <h2 className="font-semibold text-ink text-lg mb-1">Open connection board</h2>
+            <p className="text-sm text-ink-muted">
+              Connect your bot and access live actions, active tickers, settings, ticker manager,
+              trade history, and the calendar.
+            </p>
+          </div>
+          <span className="text-accent text-2xl font-bold group-hover:translate-x-1 transition-transform shrink-0">
+            →
+          </span>
+        </Link>
+
         {/* Connect your bot */}
         <BotConnectionCard />
 
