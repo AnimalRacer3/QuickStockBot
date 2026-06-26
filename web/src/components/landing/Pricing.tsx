@@ -22,9 +22,7 @@ export function Pricing() {
           <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
             Simple, transparent pricing
           </h2>
-          <p className="mt-4 text-ink-muted text-lg">
-            Two plans. One difference. Cancel whenever.
-          </p>
+          <p className="mt-4 text-ink-muted text-lg">Two plans. One difference. Cancel whenever.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl mx-auto">
@@ -93,7 +91,9 @@ export function Pricing() {
                   <span className="text-4xl font-bold text-ink">$6.99</span>
                   <span className="text-ink-muted text-lg">/month</span>
                 </div>
-                <p className="mt-1 text-xs text-ink-muted">after your free month — billed monthly</p>
+                <p className="mt-1 text-xs text-ink-muted">
+                  after your free month — billed monthly
+                </p>
               </div>
 
               <ul className="flex flex-col gap-3" aria-label="Premium plan features">
@@ -104,8 +104,14 @@ export function Pricing() {
                   </li>
                 ))}
                 <li className="flex items-start gap-3 text-sm">
-                  <Smartphone size={16} className="text-primary mt-0.5 shrink-0" strokeWidth={2.5} />
-                  <span className="text-ink-muted">Full mobile access — view & manage from anywhere</span>
+                  <Smartphone
+                    size={16}
+                    className="text-primary mt-0.5 shrink-0"
+                    strokeWidth={2.5}
+                  />
+                  <span className="text-ink-muted">
+                    Full mobile access — view & manage from anywhere
+                  </span>
                 </li>
               </ul>
 
