@@ -31,7 +31,7 @@ export default async function DashboardPage() {
   const periodEnd = user.currentPeriodEnd ? new Date(user.currentPeriodEnd) : null;
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col pt-16">
       <div className="flex-1 px-6 py-10 max-w-4xl mx-auto w-full">
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold text-ink">Dashboard</h1>
