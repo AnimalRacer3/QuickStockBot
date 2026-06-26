@@ -93,9 +93,7 @@ export default function BillingActions({ status, hasCustomer, prices }: Props) {
                 >
                   <span style={styles.planName}>Premium</span>
                   <span style={styles.planDesc}>All features</span>
-                  {prices.premium && (
-                    <span style={styles.planPrice}>{prices.premium}/month</span>
-                  )}
+                  {prices.premium && <span style={styles.planPrice}>{prices.premium}/month</span>}
                 </button>
               </div>
               <button
