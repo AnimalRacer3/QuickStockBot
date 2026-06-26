@@ -3,7 +3,6 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import { RelayProvider } from "@/lib/relay-context";
-import { Nav } from "@/components/Nav";
 import { DashboardNav } from "@/components/DashboardNav";
 import { DisclaimerBanner } from "@/components/DisclaimerBanner";
 import { Footer } from "@/components/Footer";
@@ -18,7 +17,13 @@ const DASHBOARD_PREFIXES = [
   "/calendar",
 ];
 
-export function ClientLayout({ children }: { children: React.ReactNode }) {
+export function ClientLayout({
+  children,
+  nav,
+}: {
+  children: React.ReactNode;
+  nav: React.ReactNode;
+}) {
   const pathname = usePathname() ?? "";
   const isDashboard = DASHBOARD_PREFIXES.some(
     (p) => pathname === p || pathname.startsWith(p + "/")
@@ -34,7 +39,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </>
       ) : (
         <>
-          <Nav />
+          {nav}
           <main className="flex-1">{children}</main>
           <Footer />
         </>

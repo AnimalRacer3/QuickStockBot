@@ -1,8 +1,15 @@
 import Link from "next/link";
 import { TrendingUp } from "lucide-react";
-import { Button } from "@/components/ui/Button";
+import { cookies } from "next/headers";
+import { verifySession, SESSION_COOKIE } from "@/lib/session";
+import { NavAuthButtons } from "@/components/NavAuthButtons";
 
-export function Nav() {
+export async function Nav() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  const session = token ? await verifySession(token) : null;
+  const isAuthed = !!session;
+
   return (
     <header className="fixed top-0 left-0 right-0 z-50 border-b border-border bg-bg/80 backdrop-blur-md">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 h-16 flex items-center justify-between">
@@ -40,12 +47,7 @@ export function Nav() {
         </nav>
 
         <div className="flex items-center gap-2">
-          <Button href="/login" variant="ghost" size="sm">
-            Log in
-          </Button>
-          <Button href="/signup" variant="primary" size="sm">
-            Start free
-          </Button>
+          <NavAuthButtons isAuthed={isAuthed} />
         </div>
       </div>
     </header>
