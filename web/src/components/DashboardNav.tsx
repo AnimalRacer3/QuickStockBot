@@ -48,18 +48,14 @@ export function DashboardNav() {
     <>
       {/* ── DESKTOP nav — hidden on mobile ── */}
       <nav className="hidden sm:flex items-center gap-6 px-6 py-3 bg-gray-900 border-b border-gray-800 flex-wrap">
-        <div className="font-bold text-base text-gray-50 mr-4 whitespace-nowrap">
-          QuickStockBot
-        </div>
+        <div className="font-bold text-base text-gray-50 mr-4 whitespace-nowrap">QuickStockBot</div>
         <div className="flex gap-1 flex-wrap flex-1">
           {LINKS.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
               className={`px-3 py-1.5 rounded text-sm no-underline transition-colors ${
-                pathname === href
-                  ? "bg-gray-800 text-gray-50"
-                  : "text-gray-400 hover:text-gray-200"
+                pathname === href ? "bg-gray-800 text-gray-50" : "text-gray-400 hover:text-gray-200"
               }`}
             >
               {label}
@@ -67,10 +63,7 @@ export function DashboardNav() {
           ))}
         </div>
         <div className="flex items-center gap-2 ml-auto">
-          <span
-            className="w-2 h-2 rounded-full inline-block"
-            style={{ backgroundColor: dot }}
-          />
+          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: dot }} />
           <span className="text-gray-400 text-xs">{statusLabel(connectionState)}</span>
           {connectionState === "connected" && (
             <button
@@ -87,10 +80,7 @@ export function DashboardNav() {
       <nav className="flex sm:hidden items-center px-4 py-3 bg-gray-900 border-b border-gray-800">
         <div className="font-bold text-base text-gray-50 flex-1">QuickStockBot</div>
         <div className="flex items-center gap-3">
-          <span
-            className="w-2 h-2 rounded-full inline-block"
-            style={{ backgroundColor: dot }}
-          />
+          <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: dot }} />
           <button
             onClick={() => setDrawerOpen(true)}
             className="p-1.5 text-gray-400 rounded"
@@ -105,10 +95,7 @@ export function DashboardNav() {
       {drawerOpen && (
         <div className="fixed inset-0 z-50 flex sm:hidden">
           {/* backdrop */}
-          <div
-            className="absolute inset-0 bg-black/60"
-            onClick={() => setDrawerOpen(false)}
-          />
+          <div className="absolute inset-0 bg-black/60" onClick={() => setDrawerOpen(false)} />
           {/* panel slides in from right */}
           <div className="relative ml-auto w-72 h-full bg-gray-900 flex flex-col shadow-xl">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
@@ -128,9 +115,7 @@ export function DashboardNav() {
                   href={href}
                   onClick={() => setDrawerOpen(false)}
                   className={`px-3 py-2.5 rounded text-sm no-underline ${
-                    pathname === href
-                      ? "bg-gray-800 text-gray-50"
-                      : "text-gray-400"
+                    pathname === href ? "bg-gray-800 text-gray-50" : "text-gray-400"
                   }`}
                 >
                   {label}
@@ -170,10 +155,7 @@ export function DashboardNav() {
                     active ? "bg-blue-600 border-blue-500" : "bg-gray-800"
                   }`}
                 >
-                  <Icon
-                    size={24}
-                    className={active ? "text-white" : "text-gray-400"}
-                  />
+                  <Icon size={24} className={active ? "text-white" : "text-gray-400"} />
                 </div>
                 <span
                   className={`text-[10px] leading-none ${
@@ -191,14 +173,9 @@ export function DashboardNav() {
               href={href}
               className="flex-1 flex flex-col items-center justify-center gap-1 pb-1"
             >
-              <Icon
-                size={20}
-                className={active ? "text-blue-400" : "text-gray-500"}
-              />
+              <Icon size={20} className={active ? "text-blue-400" : "text-gray-500"} />
               <span
-                className={`text-[10px] leading-none ${
-                  active ? "text-blue-400" : "text-gray-500"
-                }`}
+                className={`text-[10px] leading-none ${active ? "text-blue-400" : "text-gray-500"}`}
               >
                 {label}
               </span>
