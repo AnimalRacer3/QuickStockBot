@@ -55,7 +55,11 @@ export default function BillingActions({ status, hasCustomer }: Props) {
           <button onClick={() => startCheckout(true)} disabled={loading} style={styles.primaryBtn}>
             {loading ? "Loading…" : "Start 1-month free trial"}
           </button>
-          <button onClick={() => startCheckout(false)} disabled={loading} style={styles.secondaryBtn}>
+          <button
+            onClick={() => startCheckout(false)}
+            disabled={loading}
+            style={styles.secondaryBtn}
+          >
             {loading ? "Loading…" : "Subscribe now — skip the trial"}
           </button>
         </>

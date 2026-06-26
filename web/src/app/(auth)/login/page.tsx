@@ -73,7 +73,10 @@ function LoginForm() {
         <p className="text-ink-muted text-sm mb-8">Sign in to your account</p>
 
         {verified && (
-          <p role="status" className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3.5 py-2.5 mb-4">
+          <p
+            role="status"
+            className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3.5 py-2.5 mb-4"
+          >
             Your email is verified — please log in.
           </p>
         )}
@@ -114,7 +117,10 @@ function LoginForm() {
           </div>
 
           {error && (
-            <p role="alert" className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3.5 py-2.5">
+            <p
+              role="alert"
+              className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3.5 py-2.5"
+            >
               {error}
             </p>
           )}
@@ -126,7 +132,10 @@ function LoginForm() {
 
         <p className="mt-6 text-center text-sm text-ink-muted">
           Don&apos;t have an account?{" "}
-          <Link href="/signup" className="text-primary hover:text-primary-hover font-medium transition-colors">
+          <Link
+            href="/signup"
+            className="text-primary hover:text-primary-hover font-medium transition-colors"
+          >
             Sign up
           </Link>
         </p>
