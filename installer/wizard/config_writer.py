@@ -13,6 +13,7 @@ import platform
 import shutil
 import stat
 import subprocess
+import sys
 import uuid
 from pathlib import Path
 from typing import Any
@@ -129,6 +130,120 @@ def _write_config_json(config_dir: Path, s: dict[str, Any]) -> None:
     (config_dir / "config.json").write_text(
         json.dumps(config, indent=2), encoding="utf-8"
     )
+
+
+# ── Bot exe extraction ────────────────────────────────────────────────────────
+
+
+def extract_bot_exe(config_dir: Path) -> Path:
+    """
+    Copy the bundled bot executable into *config_dir* and return its path.
+
+    When running as a PyInstaller single-file bundle the bot exe is extracted
+    to ``sys._MEIPASS`` at startup.  In development (running from source) we
+    fall back to ``<repo-root>/bot/dist/``.
+    """
+    exe_name = (
+        "quickstockbot.exe" if platform.system() == "Windows" else "quickstockbot"
+    )
+
+    if hasattr(sys, "_MEIPASS"):
+        src = Path(sys._MEIPASS) / exe_name  # type: ignore[attr-defined]
+    else:
+        # Development fallback: look for the bot dist next to the installer dir.
+        src = Path(__file__).parent.parent.parent.parent / "bot" / "dist" / exe_name
+
+    dest = config_dir / exe_name
+    if src.exists():
+        shutil.copy2(str(src), str(dest))
+        if platform.system() != "Windows":
+            dest.chmod(dest.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    return dest
+
+
+# ── Desktop shortcut ──────────────────────────────────────────────────────────
+
+
+def create_desktop_shortcut(bot_exe_path: Path) -> None:
+    system = platform.system()
+    if system == "Windows":
+        _shortcut_windows(bot_exe_path)
+    elif system == "Linux":
+        _shortcut_linux(bot_exe_path)
+    elif system == "Darwin":
+        _shortcut_macos(bot_exe_path)
+
+
+def _shortcut_windows(bot_exe_path: Path) -> None:
+    desktop = Path.home() / "Desktop"
+    if not desktop.exists():
+        onedrive_desktop = Path.home() / "OneDrive" / "Desktop"
+        desktop = onedrive_desktop if onedrive_desktop.exists() else Path.home()
+
+    shortcut_path = desktop / "QuickStockBot.lnk"
+    ps_script = (
+        "$ws = New-Object -ComObject WScript.Shell; "
+        f'$sc = $ws.CreateShortcut("{shortcut_path}"); '
+        f'$sc.TargetPath = "{bot_exe_path}"; '
+        f'$sc.WorkingDirectory = "{bot_exe_path.parent}"; '
+        '$sc.Description = "Start QuickStockBot trading engine"; '
+        "$sc.Save()"
+    )
+    subprocess.run(
+        ["powershell", "-NoProfile", "-Command", ps_script],
+        check=True,
+        capture_output=True,
+    )
+
+
+def _shortcut_linux(bot_exe_path: Path) -> None:
+    desktop = Path.home() / "Desktop"
+    desktop.mkdir(exist_ok=True)
+    shortcut = desktop / "QuickStockBot.desktop"
+    content = (
+        "[Desktop Entry]\n"
+        "Version=1.0\n"
+        "Type=Application\n"
+        "Name=QuickStockBot\n"
+        "Comment=Start QuickStockBot trading engine\n"
+        f"Exec={bot_exe_path}\n"
+        f"Path={bot_exe_path.parent}\n"
+        "Icon=\n"
+        "Terminal=false\n"
+        "StartupNotify=false\n"
+    )
+    shortcut.write_text(content, encoding="utf-8")
+    shortcut.chmod(shortcut.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+def _shortcut_macos(bot_exe_path: Path) -> None:
+    desktop = Path.home() / "Desktop"
+    desktop.mkdir(exist_ok=True)
+    shortcut = desktop / "QuickStockBot.command"
+    content = f'#!/bin/bash\n"{bot_exe_path}" &\n'
+    shortcut.write_text(content, encoding="utf-8")
+    shortcut.chmod(shortcut.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+
+
+# ── Launch bot ────────────────────────────────────────────────────────────────
+
+
+def launch_bot(bot_exe_path: Path) -> None:
+    """Start the bot executable in the background, detached from this process."""
+    if not bot_exe_path.exists():
+        raise FileNotFoundError(f"Bot executable not found: {bot_exe_path}")
+
+    kwargs: dict = {"cwd": str(bot_exe_path.parent)}
+    if platform.system() == "Windows":
+        kwargs["creationflags"] = (
+            subprocess.DETACHED_PROCESS  # type: ignore[attr-defined]
+            | subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
+        )
+        kwargs["close_fds"] = True
+    else:
+        kwargs["start_new_session"] = True
+
+    subprocess.Popen([str(bot_exe_path)], **kwargs)
 
 
 # ── Autostart ─────────────────────────────────────────────────────────────────

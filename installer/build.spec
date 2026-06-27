@@ -1,9 +1,17 @@
 # PyInstaller spec — produces a single-file QuickStockBot installer executable.
 #
-# Build with:
-#   cd installer && pyinstaller build.spec
+# Build order matters — build the bot first, then the installer:
+#   Linux/macOS:  bash ../scripts/build_dist.sh
+#   Windows:      ..\scripts\build_dist.bat
+#
+# Or manually:
+#   cd ../bot  && pyinstaller build.spec
+#   cd ../installer && pyinstaller build.spec
 #
 # Output: installer/dist/quickstockbot-installer[.exe]
+#
+# The bot exe produced by bot/build.spec is bundled inside this installer
+# so the user only needs to distribute a single file.
 
 import sys
 from PyInstaller.building.api import EXE, PYZ
@@ -11,11 +19,14 @@ from PyInstaller.building.build_main import Analysis
 
 block_cipher = None
 
+_bot_exe_name = "quickstockbot.exe" if sys.platform == "win32" else "quickstockbot"
+_bot_exe_src = f"../bot/dist/{_bot_exe_name}"
+
 a = Analysis(
     ["wizard/__main__.py"],
     pathex=["."],
     binaries=[],
-    datas=[],
+    datas=[(_bot_exe_src, ".")],
     hiddenimports=[
         "wizard",
         "wizard.server",
