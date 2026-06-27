@@ -100,8 +100,8 @@ input.err,select.err{border-color:#fc8181}
   <div class="step active" id="s1">
     <div class="field">
       <label>Relay URL</label>
-      <input id="relay_url" type="text" value="wss://relay.quickstockbot.com"
-             placeholder="wss://relay.quickstockbot.com">
+      <input id="relay_url" type="text" value="wss://quickstockbot-relay-production.up.railway.app/bot"
+             placeholder="wss://quickstockbot-relay-production.up.railway.app/bot">
       <div class="hint">WebSocket address of the QuickStockBot relay server.</div>
       <div class="error-msg" id="e_relay_url"></div>
     </div>
