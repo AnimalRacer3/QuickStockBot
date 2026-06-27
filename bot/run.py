@@ -180,6 +180,230 @@ _SCHEMA_SQL = """
 
 _REQUIRED_ENV_VARS = ("RELAY_URL", "BOT_ID", "LICENSE_KEY", "CONNECTION_PASSWORD")
 
+# Maps Python import name → pip install name for every third-party dependency.
+_REQUIRED_PACKAGES: dict[str, str] = {
+    "dotenv": "python-dotenv",
+    "fastapi": "fastapi",
+    "uvicorn": "uvicorn",
+    "httpx": "httpx",
+    "websockets": "websockets",
+    "pydantic": "pydantic",
+    "tenacity": "tenacity",
+    "sklearn": "scikit-learn",
+    "anyio": "anyio",
+}
+
+
+def _check_and_install_deps() -> bool:
+    """
+    Verify all third-party packages are importable.
+
+    - If running as a frozen PyInstaller bundle: just report what is missing
+      (pip is not available inside the bundle).
+    - If running from a normal Python environment: attempt a pip install for
+      each missing package, then re-check.
+
+    Returns True when all dependencies are satisfied, False otherwise.
+    """
+    import importlib
+    import subprocess
+
+    missing = {
+        mod: pkg
+        for mod, pkg in _REQUIRED_PACKAGES.items()
+        if not _try_import(mod)
+    }
+
+    if not missing:
+        return True
+
+    is_frozen = getattr(sys, "frozen", False)
+
+    if is_frozen:
+        print(
+            "\n[QuickStockBot] ERROR — one or more bundled modules could not be loaded.\n"
+            "This usually means the installation is corrupt.\n\n"
+            "Missing modules:\n"
+            + "\n".join(f"  - {mod}  (package: {pkg})" for mod, pkg in missing.items())
+            + "\n\nPlease re-download and reinstall QuickStockBot.",
+            file=sys.stderr,
+            flush=True,
+        )
+        return False
+
+    # Non-frozen: try to install with pip.
+    pkgs = list(missing.values())
+    print(
+        f"[QuickStockBot] Missing packages: {', '.join(pkgs)}\n"
+        "Attempting automatic installation...",
+        flush=True,
+    )
+
+    result = subprocess.run(
+        [sys.executable, "-m", "pip", "install", "--quiet"] + pkgs,
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        print(
+            "[QuickStockBot] Automatic installation failed.\n\n"
+            "pip output:\n"
+            + (result.stderr or result.stdout or "(no output)")
+            + "\n\nInstall the missing packages manually and try again:\n"
+            f"  pip install {' '.join(pkgs)}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return False
+
+    # Re-check after install.
+    still_missing = {
+        mod: pkg for mod, pkg in missing.items() if not _try_import(mod)
+    }
+    if still_missing:
+        print(
+            "[QuickStockBot] Installation appeared to succeed but modules are still "
+            "not importable:\n"
+            + "\n".join(
+                f"  - {mod}  (package: {pkg})"
+                for mod, pkg in still_missing.items()
+            )
+            + "\n\nInstall them manually and try again:\n"
+            f"  pip install {' '.join(still_missing.values())}",
+            file=sys.stderr,
+            flush=True,
+        )
+        return False
+
+    print("[QuickStockBot] Dependencies installed successfully.", flush=True)
+    return True
+
+
+def _try_import(module: str) -> bool:
+    import importlib
+    try:
+        importlib.import_module(module)
+        return True
+    except ImportError:
+        return False
+
+
+# ── Error diagnosis ──────────────────────────────────────────────────────────
+
+def _diagnose_error(exc: BaseException, config_dir: Path) -> str:
+    """
+    Return a human-readable explanation and suggested fix for a fatal startup
+    exception.  Falls back to a generic message so something always prints.
+    """
+    name = type(exc).__name__
+    msg = str(exc).lower()
+
+    lines: list[str] = []
+
+    # --- WebSocket / network connection failures ---
+    if name in ("ConnectionRefusedError", "ConnectionResetError") or (
+        name in ("OSError", "gaierror") and "connect" in msg
+    ):
+        lines += [
+            "Cannot connect to the relay server.",
+            "",
+            "Possible fixes:",
+            "  1. Check that your internet connection is working.",
+            f"  2. Verify RELAY_URL in your config file ({config_dir / '.env'}) is correct.",
+            "  3. Re-run the installer (quickstockbot-installer) to reset your relay URL.",
+        ]
+
+    elif "nodename nor servname provided" in msg or "name or service not known" in msg or (
+        name in ("gaierror", "socket.gaierror")
+    ):
+        lines += [
+            "DNS lookup failed — the relay server hostname could not be resolved.",
+            "",
+            "Possible fixes:",
+            "  1. Check your internet connection.",
+            f"  2. Verify RELAY_URL in {config_dir / '.env'} contains a valid hostname.",
+            "  3. Re-run the installer (quickstockbot-installer) to reset your relay URL.",
+        ]
+
+    # --- WebSocket handshake / TLS errors ---
+    elif "ssl" in msg or "certificate" in msg or "tls" in msg:
+        lines += [
+            "SSL/TLS error while connecting to the relay server.",
+            "",
+            "Possible fixes:",
+            "  1. Ensure your system clock is correct (TLS certificates are time-sensitive).",
+            "  2. Check that your antivirus / firewall is not intercepting HTTPS traffic.",
+            "  3. Re-run the installer (quickstockbot-installer) to reset your relay URL.",
+        ]
+
+    # --- Authentication / registration rejected ---
+    elif "auth" in msg or "forbidden" in msg or "401" in msg or "403" in msg or (
+        name == "RuntimeError" and ("auth_challenge" in msg or "register" in msg)
+    ):
+        lines += [
+            "Authentication with the relay server failed.",
+            "",
+            "Possible fixes:",
+            f"  1. Check that BOT_ID, LICENSE_KEY, and CONNECTION_PASSWORD in {config_dir / '.env'}",
+            "     match the values shown in your QuickStockBot dashboard.",
+            "  2. Re-run the installer (quickstockbot-installer) to re-enter your credentials.",
+        ]
+
+    # --- Port already in use (local API server) ---
+    elif ("address already in use" in msg or "10048" in msg or "10013" in msg or
+          (name == "OSError" and "bind" in msg)):
+        lines += [
+            "Port 8765 is already in use — the local API server could not start.",
+            "",
+            "Possible fixes:",
+            "  1. Close any other QuickStockBot instances that may still be running.",
+            "  2. Open Task Manager and end any 'quickstockbot' processes.",
+            "  3. Restart your computer if the port remains occupied.",
+        ]
+
+    # --- SQLite / database errors ---
+    elif "sqlite" in name.lower() or "database" in msg or "db" in name.lower():
+        db_path = config_dir / "quickstock.db"
+        lines += [
+            "Database error — the local database could not be opened or initialised.",
+            "",
+            "Possible fixes:",
+            f"  1. Check that the folder exists and is writable: {config_dir}",
+            f"  2. If the database file is corrupted, delete it and restart: {db_path}",
+            "     (Trade history will be lost, but the bot will recreate the file.)",
+        ]
+
+    # --- Import / packaging errors (frozen exe) ---
+    elif name in ("ModuleNotFoundError", "ImportError"):
+        lines += [
+            f"A required module could not be loaded: {exc}",
+            "",
+            "Possible fixes:",
+            "  1. Download and install the latest version of QuickStockBot.",
+            "  2. If this persists, contact support with the log file below.",
+        ]
+
+    # --- Fallback: show the raw exception clearly ---
+    else:
+        lines += [
+            f"An unexpected error occurred ({name}):",
+            f"  {exc}",
+            "",
+            "Possible fixes:",
+            "  1. Re-run the installer (quickstockbot-installer) to reset your configuration.",
+            "  2. Restart your computer and try again.",
+            "  3. Check the log file for more detail (path shown below).",
+        ]
+
+    log_path = config_dir / "quickstockbot.log"
+    lines += [
+        "",
+        f"Full error details have been written to: {log_path}",
+        "Share that file with support if the problem persists.",
+    ]
+    return "\n".join(lines)
+
 
 def _init_db(db: sqlite3.Connection) -> None:
     """Create all tables and indexes if they don't exist yet (idempotent)."""
@@ -189,6 +413,11 @@ def _init_db(db: sqlite3.Connection) -> None:
 
 def main() -> None:
     config_dir = _config_dir()
+
+    if not _check_and_install_deps():
+        _pause_on_windows()
+        sys.exit(1)
+
     env_file = config_dir / ".env"
 
     if not env_file.exists():
@@ -201,7 +430,17 @@ def main() -> None:
         _pause_on_windows()
         sys.exit(1)
 
-    from dotenv import load_dotenv
+    try:
+        from dotenv import load_dotenv
+    except ImportError as exc:
+        print(
+            f"[QuickStockBot] Cannot import 'dotenv': {exc}\n"
+            "Run:  pip install python-dotenv",
+            file=sys.stderr,
+            flush=True,
+        )
+        _pause_on_windows()
+        sys.exit(1)
 
     load_dotenv(env_file, override=True)
 
@@ -234,8 +473,17 @@ def main() -> None:
         asyncio.run(_run(config_dir))
     except KeyboardInterrupt:
         logger.info("Shutting down (keyboard interrupt).")
-    except Exception:
+    except Exception as exc:
         logger.exception("Fatal error — bot is stopping.")
+        diagnosis = _diagnose_error(exc, config_dir)
+        print(
+            "\n" + "=" * 60 + "\n"
+            "  QuickStockBot stopped due to an error\n"
+            "=" * 60 + "\n\n"
+            + diagnosis,
+            file=sys.stderr,
+            flush=True,
+        )
         _pause_on_windows()
         sys.exit(1)
 
@@ -271,4 +519,26 @@ async def _run(config_dir: Path) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise  # let sys.exit() pass through normally
+    except Exception:
+        import traceback
+
+        print(
+            "\n" + "=" * 60 + "\n"
+            "  QuickStockBot crashed before startup completed\n"
+            "=" * 60 + "\n",
+            file=sys.stderr,
+            flush=True,
+        )
+        traceback.print_exc(file=sys.stderr)
+        print(
+            "\nThis is likely a bundling or environment issue.\n"
+            "Please reinstall QuickStockBot or contact support.",
+            file=sys.stderr,
+            flush=True,
+        )
+        _pause_on_windows()
+        sys.exit(1)
