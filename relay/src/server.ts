@@ -25,6 +25,8 @@ export interface RelayConfig {
   validateUrl: string;
   /** HMAC secret shared with bot instances; skip proof check if empty */
   connectionSecret?: string;
+  /** Shared secret sent to the SaaS validate endpoint; bypasses Cloudflare bot protection */
+  saasSecret?: string;
   /** RPC round-trip timeout in ms */
   rpcTimeoutMs?: number;
   /** Ping interval in ms */
@@ -68,6 +70,7 @@ export class RelayServer {
     this.cfg = {
       host: "0.0.0.0",
       connectionSecret: "",
+      saasSecret: "",
       rpcTimeoutMs: DEFAULTS.rpcTimeoutMs,
       pingIntervalMs: DEFAULTS.pingIntervalMs,
       heartbeatTimeoutMs: DEFAULTS.heartbeatTimeoutMs,
@@ -239,7 +242,7 @@ export class RelayServer {
       }
     }
 
-    const licenseResult = await validateLicense(license_key, bot_id, this.cfg.validateUrl);
+    const licenseResult = await validateLicense(license_key, bot_id, this.cfg.validateUrl, this.cfg.saasSecret || undefined);
 
     if (!licenseResult.valid || !licenseResult.account_id) {
       const reason = licenseResult.error ?? "license invalid";

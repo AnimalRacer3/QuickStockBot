@@ -27,6 +27,13 @@ export async function GET(req: NextRequest) {
  * Used by the relay server to authenticate bot connections.
  */
 export async function POST(req: NextRequest) {
+  const relaySecret = process.env.RELAY_SECRET;
+  if (relaySecret) {
+    const provided = req.headers.get("x-relay-secret");
+    if (provided !== relaySecret) {
+      return NextResponse.json({ valid: false, error: "unauthorized" }, { status: 401 });
+    }
+  }
   let body: { license_key?: string; bot_id?: string };
   try {
     body = await req.json();

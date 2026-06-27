@@ -24,12 +24,15 @@ export function verifyHmac(nonce: string, secret: string, proof: string): boolea
 export async function validateLicense(
   licenseKey: string,
   botId: string,
-  validateUrl: string
+  validateUrl: string,
+  saasSecret?: string
 ): Promise<LicenseValidationResult> {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (saasSecret) headers["x-relay-secret"] = saasSecret;
     const resp = await fetch(validateUrl, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({ license_key: licenseKey, bot_id: botId }),
       signal: AbortSignal.timeout(5000),
     });

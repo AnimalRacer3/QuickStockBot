@@ -7,12 +7,14 @@ const PORT = parseInt(process.env.PORT ?? process.env.RELAY_PORT ?? "8080", 10);
 const HOST = process.env.RELAY_HOST ?? "0.0.0.0";
 const VALIDATE_URL = process.env.SAAS_VALIDATE_URL ?? "http://localhost:3000/api/validate";
 const CONNECTION_SECRET = process.env.RELAY_CONNECTION_SECRET ?? "";
+const SAAS_SECRET = process.env.SAAS_SECRET ?? "";
 
 const relay = new RelayServer({
   port: PORT,
   host: HOST,
   validateUrl: VALIDATE_URL,
   connectionSecret: CONNECTION_SECRET,
+  saasSecret: SAAS_SECRET,
 });
 
 relay.listen().catch((err: unknown) => {
