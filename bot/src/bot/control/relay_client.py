@@ -85,12 +85,16 @@ class RelayClient:
                         "Relay authentication failed: %s\n"
                         "  Fix: check your .env file — BOT_ID, LICENSE_KEY, and CONNECTION_PASSWORD\n"
                         "  Detail: %s",
-                        reason.removeprefix("AUTH_FAILED: ").removeprefix("AUTH_FAILED"),
+                        reason.removeprefix("AUTH_FAILED: ").removeprefix(
+                            "AUTH_FAILED"
+                        ),
                         exc,
                     )
                 else:
                     logger.warning(
-                        "Relay session ended: %s — retrying in %.0fs", exc, self._backoff
+                        "Relay session ended: %s — retrying in %.0fs",
+                        exc,
+                        self._backoff,
                     )
                 await asyncio.sleep(self._backoff)
                 self._backoff = min(self._backoff * 2, 60.0)

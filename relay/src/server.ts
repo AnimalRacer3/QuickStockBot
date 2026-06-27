@@ -231,7 +231,10 @@ export class RelayServer {
     if (this.cfg.connectionSecret) {
       if (!verifyHmac(pending.nonce, this.cfg.connectionSecret, connection_password_proof)) {
         logger.warn("Bot auth failed: bad HMAC proof", { bot_id });
-        ws.close(4001, "AUTH_FAILED: wrong CONNECTION_PASSWORD — it must match RELAY_CONNECTION_SECRET on the relay server");
+        ws.close(
+          4001,
+          "AUTH_FAILED: wrong CONNECTION_PASSWORD — it must match RELAY_CONNECTION_SECRET on the relay server"
+        );
         return;
       }
     }
@@ -242,11 +245,12 @@ export class RelayServer {
       const reason = licenseResult.error ?? "license invalid";
       logger.warn("Bot auth failed: invalid license", { bot_id, error: reason });
 
-      const closeReason = reason === "license not found"
-        ? "AUTH_FAILED: license key not found — seed it via POST /api/licenses/seed on the web app"
-        : reason.startsWith("license is ")
-          ? `AUTH_FAILED: ${reason} — check your LICENSE_KEY or renew your subscription`
-          : `AUTH_FAILED: license validation failed (${reason}) — check SAAS_VALIDATE_URL on the relay`;
+      const closeReason =
+        reason === "license not found"
+          ? "AUTH_FAILED: license key not found — seed it via POST /api/licenses/seed on the web app"
+          : reason.startsWith("license is ")
+            ? `AUTH_FAILED: ${reason} — check your LICENSE_KEY or renew your subscription`
+            : `AUTH_FAILED: license validation failed (${reason}) — check SAAS_VALIDATE_URL on the relay`;
       ws.close(4001, closeReason);
       return;
     }
