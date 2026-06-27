@@ -135,6 +135,9 @@ class RelayClient:
             self._ws = ws
             try:
                 await self._authenticate(ws)
+                logger.info(
+                    "Connected to relay at %s (bot_id=%s)", self.url, self.bot_id
+                )
                 async for raw in ws:
                     msg = json.loads(raw)
                     if msg.get("type") == "rpc_request":
@@ -142,6 +145,7 @@ class RelayClient:
                         await ws.send(json.dumps(reply))
             finally:
                 self._ws = None
+                logger.info("Disconnected from relay.")
 
     async def _authenticate(self, ws: Any) -> None:
         raw = await ws.recv()
