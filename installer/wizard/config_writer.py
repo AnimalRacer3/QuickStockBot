@@ -143,7 +143,9 @@ def extract_bot_exe(config_dir: Path) -> Path:
     to ``sys._MEIPASS`` at startup.  In development (running from source) we
     fall back to ``<repo-root>/bot/dist/``.
     """
-    exe_name = "quickstockbot.exe" if platform.system() == "Windows" else "quickstockbot"
+    exe_name = (
+        "quickstockbot.exe" if platform.system() == "Windows" else "quickstockbot"
+    )
 
     if hasattr(sys, "_MEIPASS"):
         src = Path(sys._MEIPASS) / exe_name  # type: ignore[attr-defined]
