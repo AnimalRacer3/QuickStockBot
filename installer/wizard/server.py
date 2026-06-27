@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import sys
 import uuid as _uuid_mod
 from typing import Any
 

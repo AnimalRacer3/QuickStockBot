@@ -4,6 +4,7 @@ QuickStockBot trading engine — standalone entry point.
 Reads config from ~/.quickstockbot/ (or %LOCALAPPDATA%\\QuickStockBot\\ on Windows),
 then starts the relay client and local API server concurrently.
 """
+
 from __future__ import annotations
 
 import asyncio

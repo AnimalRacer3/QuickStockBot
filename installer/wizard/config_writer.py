@@ -13,6 +13,7 @@ import platform
 import shutil
 import stat
 import subprocess
+import sys
 import uuid
 from pathlib import Path
 from typing import Any
