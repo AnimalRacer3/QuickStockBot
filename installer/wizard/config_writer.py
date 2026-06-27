@@ -236,7 +236,8 @@ def launch_bot(bot_exe_path: Path) -> None:
     kwargs: dict = {"cwd": str(bot_exe_path.parent)}
     if platform.system() == "Windows":
         kwargs["creationflags"] = (
-            subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+            subprocess.DETACHED_PROCESS  # type: ignore[attr-defined]
+            | subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
         )
         kwargs["close_fds"] = True
     else:
