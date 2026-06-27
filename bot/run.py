@@ -205,13 +205,10 @@ def _check_and_install_deps() -> bool:
 
     Returns True when all dependencies are satisfied, False otherwise.
     """
-    import importlib
     import subprocess
 
     missing = {
-        mod: pkg
-        for mod, pkg in _REQUIRED_PACKAGES.items()
-        if not _try_import(mod)
+        mod: pkg for mod, pkg in _REQUIRED_PACKAGES.items() if not _try_import(mod)
     }
 
     if not missing:
@@ -258,16 +255,13 @@ def _check_and_install_deps() -> bool:
         return False
 
     # Re-check after install.
-    still_missing = {
-        mod: pkg for mod, pkg in missing.items() if not _try_import(mod)
-    }
+    still_missing = {mod: pkg for mod, pkg in missing.items() if not _try_import(mod)}
     if still_missing:
         print(
             "[QuickStockBot] Installation appeared to succeed but modules are still "
             "not importable:\n"
             + "\n".join(
-                f"  - {mod}  (package: {pkg})"
-                for mod, pkg in still_missing.items()
+                f"  - {mod}  (package: {pkg})" for mod, pkg in still_missing.items()
             )
             + "\n\nInstall them manually and try again:\n"
             f"  pip install {' '.join(still_missing.values())}",
@@ -282,6 +276,7 @@ def _check_and_install_deps() -> bool:
 
 def _try_import(module: str) -> bool:
     import importlib
+
     try:
         importlib.import_module(module)
         return True
@@ -290,6 +285,7 @@ def _try_import(module: str) -> bool:
 
 
 # ── Error diagnosis ──────────────────────────────────────────────────────────
+
 
 def _diagnose_error(exc: BaseException, config_dir: Path) -> str:
     """
@@ -314,8 +310,10 @@ def _diagnose_error(exc: BaseException, config_dir: Path) -> str:
             "  3. Re-run the installer (quickstockbot-installer) to reset your relay URL.",
         ]
 
-    elif "nodename nor servname provided" in msg or "name or service not known" in msg or (
-        name in ("gaierror", "socket.gaierror")
+    elif (
+        "nodename nor servname provided" in msg
+        or "name or service not known" in msg
+        or (name in ("gaierror", "socket.gaierror"))
     ):
         lines += [
             "DNS lookup failed — the relay server hostname could not be resolved.",
@@ -338,8 +336,12 @@ def _diagnose_error(exc: BaseException, config_dir: Path) -> str:
         ]
 
     # --- Authentication / registration rejected ---
-    elif "auth" in msg or "forbidden" in msg or "401" in msg or "403" in msg or (
-        name == "RuntimeError" and ("auth_challenge" in msg or "register" in msg)
+    elif (
+        "auth" in msg
+        or "forbidden" in msg
+        or "401" in msg
+        or "403" in msg
+        or (name == "RuntimeError" and ("auth_challenge" in msg or "register" in msg))
     ):
         lines += [
             "Authentication with the relay server failed.",
@@ -351,8 +353,12 @@ def _diagnose_error(exc: BaseException, config_dir: Path) -> str:
         ]
 
     # --- Port already in use (local API server) ---
-    elif ("address already in use" in msg or "10048" in msg or "10013" in msg or
-          (name == "OSError" and "bind" in msg)):
+    elif (
+        "address already in use" in msg
+        or "10048" in msg
+        or "10013" in msg
+        or (name == "OSError" and "bind" in msg)
+    ):
         lines += [
             "Port 8765 is already in use — the local API server could not start.",
             "",
@@ -479,8 +485,7 @@ def main() -> None:
         print(
             "\n" + "=" * 60 + "\n"
             "  QuickStockBot stopped due to an error\n"
-            "=" * 60 + "\n\n"
-            + diagnosis,
+            "=" * 60 + "\n\n" + diagnosis,
             file=sys.stderr,
             flush=True,
         )
