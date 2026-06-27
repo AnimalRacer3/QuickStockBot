@@ -36,9 +36,10 @@ uv run pytest -v
 ## Building the executable
 
 ```bash
-cd installer
+cd bot
 uv run pyinstaller build.spec
-# Output: dist/quickstockbot-installer[.exe]
+cd ../installer
+uv run pyinstaller build.spec
 ```
 
 ## Wizard flow
@@ -65,7 +66,7 @@ appear in logs. Non-secret tunables go to `~/.quickstockbot/config.json`.
 ## Autostart
 
 | OS      | Method                                       |
-|---------|----------------------------------------------|
+| ------- | -------------------------------------------- |
 | Windows | Windows Task Scheduler (`ONLOGON`, elevated) |
 | Linux   | systemd user service (`~/.config/systemd`)   |
 | macOS   | launchd plist (`~/Library/LaunchAgents`)     |
