@@ -566,7 +566,13 @@ describe("Reconnect handling", () => {
     sock.close();
     await closed;
 
-    await new Promise((r) => setImmediate(r));
+    // Poll until the server-side close handler fires and calls unregisterBot.
+    // setImmediate is not enough because the server's close event fires on a
+    // different socket object and may arrive one or more event-loop turns later.
+    const deadline = Date.now() + 500;
+    while (relay.routingMap.getBot("bot-disco") && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 10));
+    }
     expect(relay.routingMap.getBot("bot-disco")).toBeUndefined();
   });
 
