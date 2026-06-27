@@ -6,7 +6,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+'
+      - 'v[0-9]*.[0-9]*'
 
 jobs:
   build-and-release:
@@ -30,7 +30,7 @@ jobs:
       # ── Build bot executable ────────────────────────────────────────────────
       - name: Install bot dependencies
         working-directory: bot
-        run: uv sync
+        run: uv sync --dev
 
       - name: Build bot executable
         working-directory: bot
@@ -39,7 +39,7 @@ jobs:
       # ── Build installer executable (bundles the bot exe inside) ────────────
       - name: Install installer dependencies
         working-directory: installer
-        run: uv sync
+        run: uv sync --dev
 
       - name: Build installer executable
         working-directory: installer

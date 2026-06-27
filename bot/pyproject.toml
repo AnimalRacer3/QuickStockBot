@@ -26,6 +26,7 @@ dev = [
     "anyio>=4.3",
     "black>=24",
     "mypy>=1.9",
+    "pyinstaller>=6.0",
     "pytest>=8",
     "pytest-anyio>=0.0.0",
     "respx>=0.21",
