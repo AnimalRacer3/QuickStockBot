@@ -22,7 +22,7 @@ test.describe("Landing page", () => {
     await page.locator("#pricing").scrollIntoViewIfNeeded();
     const pricingCta = page.getByRole("link", { name: /start free trial/i });
     await expect(pricingCta).toBeVisible();
-    await expect(pricingCta).toHaveAttribute("href", "/signup");
+    await expect(pricingCta).toHaveAttribute("href", "/signup?plan=premium");
   });
 
   test("nav contains Log in and Start free links", async ({ page }) => {
