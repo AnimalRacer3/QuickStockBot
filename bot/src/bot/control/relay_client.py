@@ -79,9 +79,19 @@ class RelayClient:
             except asyncio.CancelledError:
                 break
             except Exception as exc:
-                logger.warning(
-                    "Relay session ended: %s — retrying in %.0fs", exc, self._backoff
-                )
+                reason = self._parse_close_reason(exc)
+                if reason and reason.startswith("AUTH_FAILED"):
+                    logger.error(
+                        "Relay authentication failed: %s\n"
+                        "  Fix: check your .env file — BOT_ID, LICENSE_KEY, and CONNECTION_PASSWORD\n"
+                        "  Detail: %s",
+                        reason.removeprefix("AUTH_FAILED: ").removeprefix("AUTH_FAILED"),
+                        exc,
+                    )
+                else:
+                    logger.warning(
+                        "Relay session ended: %s — retrying in %.0fs", exc, self._backoff
+                    )
                 await asyncio.sleep(self._backoff)
                 self._backoff = min(self._backoff * 2, 60.0)
 
@@ -194,6 +204,14 @@ class RelayClient:
 
     def _on_log_subscribe(self, filter_params: dict) -> None:
         self._log_filter = filter_params
+
+    @staticmethod
+    def _parse_close_reason(exc: BaseException) -> str | None:
+        """Extract the WebSocket close reason string from a websockets exception."""
+        rcvd = getattr(exc, "rcvd", None)
+        if rcvd is not None:
+            return getattr(rcvd, "reason", None)
+        return None
 
     async def _send(self, msg: dict) -> None:
         if self._ws is not None:
