@@ -87,14 +87,37 @@ def create_app() -> Flask:
         data: dict[str, Any] = request.get_json(force=True) or {}
         try:
             config_dir, bot_id = config_writer.write_config(data)
-            exe_path = sys.executable
+
+            # Extract the bundled bot exe to a permanent location.
+            bot_exe_path = config_writer.extract_bot_exe(config_dir)
+
+            # Register the BOT exe (not the installer) for autostart on login.
             try:
-                config_writer.setup_autostart(exe_path, config_dir)
+                config_writer.setup_autostart(str(bot_exe_path), config_dir)
                 autostart_ok = True
                 autostart_msg = "Autostart configured."
             except Exception as exc:
                 autostart_ok = False
                 autostart_msg = f"Autostart setup failed (manual setup required): {exc}"
+
+            # Create a desktop shortcut so the user can restart the bot manually.
+            try:
+                config_writer.create_desktop_shortcut(bot_exe_path)
+                shortcut_ok = True
+                shortcut_msg = "Desktop shortcut created."
+            except Exception as exc:
+                shortcut_ok = False
+                shortcut_msg = f"Desktop shortcut could not be created: {exc}"
+
+            # Launch the bot immediately — no need to wait for a reboot.
+            try:
+                config_writer.launch_bot(bot_exe_path)
+                launched = True
+                launch_msg = "Bot started."
+            except Exception as exc:
+                launched = False
+                launch_msg = f"Could not start bot automatically: {exc}"
+
             return jsonify(
                 {
                     "success": True,
@@ -102,6 +125,10 @@ def create_app() -> Flask:
                     "config_dir": str(config_dir),
                     "autostart_ok": autostart_ok,
                     "autostart_message": autostart_msg,
+                    "shortcut_ok": shortcut_ok,
+                    "shortcut_message": shortcut_msg,
+                    "bot_launched": launched,
+                    "launch_message": launch_msg,
                 }
             )
         except Exception as exc:

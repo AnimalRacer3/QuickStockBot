@@ -731,7 +731,7 @@ async function startInstall() {
     if (el) { log.push(msg); el.textContent = log.join('\n'); }
   }
 
-  appendLog('[1/3] Writing configuration to disk...');
+  appendLog('[1/5] Writing configuration to disk...');
 
   const payload = Object.assign({}, state);
   const res = await postJSON('/api/install', payload);
@@ -747,12 +747,16 @@ async function startInstall() {
     return;
   }
 
-  appendLog('[2/3] Configuration written.');
-  if (res.autostart_ok) {
-    appendLog('[3/3] Autostart enabled — bot will launch on login.');
-  } else {
-    appendLog('[3/3] Note: ' + (res.autostart_message || 'autostart requires manual setup.'));
-  }
+  appendLog('[2/5] Configuration written.');
+  appendLog('[3/5] ' + (res.autostart_ok
+    ? 'Autostart enabled — bot will launch automatically on login.'
+    : 'Note: ' + (res.autostart_message || 'autostart requires manual setup.')));
+  appendLog('[4/5] ' + (res.shortcut_ok
+    ? 'Desktop shortcut created — double-click QuickStockBot on your Desktop to restart.'
+    : 'Note: ' + (res.shortcut_message || 'desktop shortcut could not be created.')));
+  appendLog('[5/5] ' + (res.bot_launched
+    ? 'Bot is now running in the background.'
+    : 'Note: ' + (res.launch_message || 'start the bot manually using the desktop shortcut.')));
   appendLog('');
   appendLog('Done!');
 
@@ -763,8 +767,12 @@ async function startInstall() {
     <div class="done-box">
       <div class="done-icon">&#10003;</div>
       <h2 style="color:#6ee7b7;margin-bottom:8px">Setup Complete!</h2>
-      <p style="color:#a0aec0;font-size:.9rem;margin-bottom:14px">
-        QuickStockBot is configured${res.autostart_ok ? ' and will start automatically on login' : ''}.
+      <p style="color:#a0aec0;font-size:.9rem;margin-bottom:6px">
+        QuickStockBot is now running in the background.
+      </p>
+      <p style="color:#a0aec0;font-size:.85rem;margin-bottom:14px">
+        ${res.autostart_ok ? 'It will start automatically each time you log in.' : ''}
+        ${res.shortcut_ok ? 'Use the <strong>QuickStockBot</strong> shortcut on your Desktop to restart it any time.' : ''}
       </p>
       ${botUrl ? `
       <p style="color:#a0aec0;font-size:.85rem;margin-bottom:6px">
@@ -778,7 +786,7 @@ async function startInstall() {
         Config saved to: <span style="font-family:monospace">${res.config_dir || ''}</span>
       </p>
       <p style="color:#4a5568;font-size:.78rem;margin-top:8px">
-        You may close this window. The bot service is now running in the background.
+        You may close this window.
       </p>
     </div>
   `;
