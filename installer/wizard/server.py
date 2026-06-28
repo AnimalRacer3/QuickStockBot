@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
+import json as _json
 import os
+import urllib.error
+import urllib.request
 import uuid as _uuid_mod
 from typing import Any
-
-import urllib.request
-import urllib.error
-import json as _json
 
 from flask import Flask, Response, jsonify, make_response, request
 

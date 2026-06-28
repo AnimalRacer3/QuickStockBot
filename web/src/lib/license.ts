@@ -56,9 +56,7 @@ export function createLicenseRepository(db: Database.Database) {
        ORDER BY issued_at DESC LIMIT 1`
     ),
     updateStatus: db.prepare(`UPDATE licenses SET status = ? WHERE key = ? AND status != ?`),
-    setConnectionPassword: db.prepare(
-      `UPDATE licenses SET connection_password = ? WHERE key = ?`
-    ),
+    setConnectionPassword: db.prepare(`UPDATE licenses SET connection_password = ? WHERE key = ?`),
   };
 
   return {

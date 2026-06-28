@@ -39,10 +39,7 @@ export async function POST(req: NextRequest) {
 
   const status = repo.validateLicense(license_key);
   if (status !== "active") {
-    return NextResponse.json(
-      { ok: false, error: `license is ${status}` },
-      { status: 403 }
-    );
+    return NextResponse.json({ ok: false, error: `license is ${status}` }, { status: 403 });
   }
 
   repo.setConnectionPassword(license_key, connection_password);
