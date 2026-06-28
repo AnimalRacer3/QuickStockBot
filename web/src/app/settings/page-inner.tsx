@@ -455,7 +455,9 @@ export default function SettingsPageInner() {
                     checked={(settings.trail_off_trigger ?? "candle_pattern") === mode}
                     onChange={() => set("trail_off_trigger", mode)}
                   />
-                  {mode === "per_candle" ? "Per Candle (sell fraction every candle)" : "Candle Pattern (sell on pattern change)"}
+                  {mode === "per_candle"
+                    ? "Per Candle (sell fraction every candle)"
+                    : "Candle Pattern (sell on pattern change)"}
                 </label>
               ))}
             </div>

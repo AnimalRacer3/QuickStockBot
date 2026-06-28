@@ -15,10 +15,10 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 from bot.control import db as dbmod
 from bot.control.connection import DbConn
+
+logger = logging.getLogger(__name__)
 
 # ─── License / notice constants ───────────────────────────────────────────────
 
@@ -466,7 +466,7 @@ def handle_get_order_detail(db: DbConn, params: dict) -> dict:
 
 
 def handle_subscribe_logs(
-    db: sqlite3.Connection,
+    db: DbConn,
     params: dict,
     on_subscribe: Callable[[dict], None] | None = None,
 ) -> dict:
@@ -522,7 +522,7 @@ _HANDLERS: dict[str, Callable] = {
 
 def dispatch(
     method: str,
-    db: sqlite3.Connection,
+    db: DbConn,
     params: dict,
     on_subscribe: Callable[[dict], None] | None = None,
 ) -> dict:

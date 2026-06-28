@@ -30,7 +30,7 @@ def _ts_for_date(date_str: str) -> int:
     )
 
 
-def _add_trade_on(conn: sqlite3.Connection, date_str: str, net_pnl: float) -> None:
+def _add_trade_on(conn: DbConn, date_str: str, net_pnl: float) -> None:
     oid = insert_order(conn)
     insert_trade(
         conn, entry_order_id=oid, net_pnl=net_pnl, closed_at=_ts_for_date(date_str)
