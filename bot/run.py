@@ -16,6 +16,10 @@ import platform
 import sys
 import time
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from bot.control.connection import DbConn
 
 
 def _config_dir() -> Path:
@@ -419,12 +423,12 @@ def _diagnose_error(exc: BaseException, config_dir: Path) -> str:
     return "\n".join(lines)
 
 
-def _init_db(db: "DbConn") -> None:
+def _init_db(db: DbConn) -> None:
     """Create all tables and indexes if they don't exist yet (idempotent)."""
     db.executescript(_SCHEMA_SQL)
 
 
-def _load_config_json_into_db(config_dir: Path, db: "DbConn") -> None:
+def _load_config_json_into_db(config_dir: Path, db: DbConn) -> None:
     """
     One-time migration: read wizard config.json and insert any settings not
     already present in the DB.  Existing DB rows (set via the web dashboard)
@@ -465,7 +469,7 @@ def _load_config_json_into_db(config_dir: Path, db: "DbConn") -> None:
         logger.info("Migrated %d settings from config.json into DB", inserted)
 
 
-async def _scan_loop(db: "DbConn") -> None:
+async def _scan_loop(db: DbConn) -> None:
     """
     Background loop: polls for a scan request flag set by the trigger_scan RPC
     and runs the momentum scanner when triggered.
@@ -712,7 +716,7 @@ async def _run(config_dir: Path) -> None:
     import uvicorn
 
     import bot.control.local_api as _local_api_mod
-    from bot.control.connection import DbConn, get_db_connection
+    from bot.control.connection import get_db_connection
     from bot.control.relay_client import RelayClient
 
     db = get_db_connection()
