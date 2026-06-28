@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLicenseDb } from "@/lib/license-db";
-import { createLicenseRepository } from "@/lib/license";
+import { prisma } from "@/lib/db";
+import { getLicense } from "@/lib/license";
 
 /**
  * POST /api/licenses/seed
@@ -40,9 +40,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const repo = createLicenseRepository(getLicenseDb());
-
-  const existing = repo.getLicense(key);
+  const existing = await getLicense(key);
   if (existing) {
     return NextResponse.json(
       { error: "license key already exists", status: existing.status },
@@ -50,11 +48,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const db = getLicenseDb();
-  const issuedAt = new Date().toISOString();
-  db.prepare(
-    `INSERT INTO licenses (key, user_id, status, issued_at, expires_at) VALUES (?, ?, 'active', ?, ?)`
-  ).run(key, userId, issuedAt, expiresAt ?? null);
+  const issuedAt = new Date();
+  await prisma.license.create({
+    data: {
+      key,
+      userId,
+      status: "active",
+      issuedAt,
+      expiresAt: expiresAt ? new Date(expiresAt) : null,
+    },
+  });
 
-  return NextResponse.json({ key, userId, status: "active", issuedAt }, { status: 201 });
+  return NextResponse.json(
+    { key, userId, status: "active", issuedAt: issuedAt.toISOString() },
+    { status: 201 }
+  );
 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLicenseDb } from "@/lib/license-db";
-import { createLicenseRepository } from "@/lib/license";
+import { getLicense, validateLicense } from "@/lib/license";
 
 /** GET /api/licenses/validate?key=QSB-... — phone-home endpoint used by the bot. */
 export async function GET(req: NextRequest) {
@@ -9,8 +8,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "key is required" }, { status: 400 });
   }
 
-  const repo = createLicenseRepository(getLicenseDb());
-  const status = repo.validateLicense(key);
+  const status = await validateLicense(key);
 
   if (status === null) {
     return NextResponse.json({ error: "license not found" }, { status: 404 });
@@ -46,14 +44,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ valid: false, error: "license_key is required" }, { status: 400 });
   }
 
-  const repo = createLicenseRepository(getLicenseDb());
-  const license = repo.getLicense(license_key);
+  const license = await getLicense(license_key);
 
   if (!license) {
     return NextResponse.json({ valid: false, error: "license not found" });
   }
 
-  const status = repo.validateLicense(license_key);
+  const status = await validateLicense(license_key);
   if (status !== "active") {
     return NextResponse.json({ valid: false, error: `license is ${status}` });
   }

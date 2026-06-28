@@ -55,3 +55,15 @@ model TrialRecord {
   @@index([email])
   @@index([signupIp])
 }
+
+model License {
+  key                String    @id
+  userId             String
+  status             String    @default("active")
+  issuedAt           DateTime  @default(now())
+  expiresAt          DateTime?
+  connectionPassword String?
+
+  @@index([userId])
+  @@index([status])
+}
