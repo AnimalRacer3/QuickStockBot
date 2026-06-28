@@ -42,9 +42,13 @@ export async function validateLicense(
     const data = (await resp.json()) as LicenseValidationResult;
     return data;
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Network error";
+    const cause = err instanceof Error && (err as NodeJS.ErrnoException & { cause?: unknown }).cause instanceof Error
+      ? ((err as NodeJS.ErrnoException & { cause?: unknown }).cause as Error).message
+      : undefined;
     return {
       valid: false,
-      error: err instanceof Error ? err.message : "Network error",
+      error: cause ? `${message} (${cause})` : message,
     };
   }
 }
