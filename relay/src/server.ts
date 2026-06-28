@@ -303,7 +303,8 @@ export class RelayServer {
       ws,
       bot_id,
       account_id: licenseResult.account_id,
-      connection_password: licenseResult.connection_password || this.cfg.connectionSecret || undefined,
+      connection_password:
+        licenseResult.connection_password || this.cfg.connectionSecret || undefined,
       version,
       registered_at: Date.now(),
       last_ping_at: Date.now(),
@@ -416,11 +417,7 @@ export class RelayServer {
     ws.on("close", () => clearTimeout(authTimeout));
   }
 
-  private setupWebClient(
-    ws: WebSocket,
-    accountId: string,
-    defaultBotId: string | undefined
-  ): void {
+  private setupWebClient(ws: WebSocket, accountId: string, defaultBotId: string | undefined): void {
     const client: WebClientRecord = {
       ws,
       account_id: accountId,
@@ -483,7 +480,10 @@ export class RelayServer {
       this.sendWeb(ws, {
         type: "error",
         id: msg.id,
-        payload: { code: "BOT_NOT_FOUND", message: "No bot_id specified and none set on connection" },
+        payload: {
+          code: "BOT_NOT_FOUND",
+          message: "No bot_id specified and none set on connection",
+        },
       });
       return;
     }
@@ -670,6 +670,8 @@ function extractQueryParam(url: string, key: string): string | null {
 
 /** Extract bot UUID from /ws/<uuid> or /bot/bots/<uuid> paths */
 function extractBotIdFromPath(url: string): string | undefined {
-  const m = url.match(/^\/(?:ws|bot\/bots)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i);
+  const m = url.match(
+    /^\/(?:ws|bot\/bots)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+  );
   return m?.[1];
 }
