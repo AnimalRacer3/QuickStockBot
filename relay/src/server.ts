@@ -97,7 +97,13 @@ export class RelayServer {
         this.botWss.handleUpgrade(req, socket, head, (ws) => {
           this.botWss.emit("connection", ws, req);
         });
-      } else if (url === "/ws" || url.startsWith("/ws?")) {
+      } else if (
+        url === "/ws" ||
+        url.startsWith("/ws?") ||
+        url.startsWith("/ws/") ||
+        url.startsWith("/bot/bots/")
+      ) {
+        // Accept /ws/<bot_id> and /bot/bots/<bot_id> for web clients
         this.webWss.handleUpgrade(req, socket, head, (ws) => {
           this.webWss.emit("connection", ws, req);
         });
@@ -297,6 +303,8 @@ export class RelayServer {
       ws,
       bot_id,
       account_id: licenseResult.account_id,
+      connection_password:
+        licenseResult.connection_password || this.cfg.connectionSecret || undefined,
       version,
       registered_at: Date.now(),
       last_ping_at: Date.now(),
@@ -334,17 +342,86 @@ export class RelayServer {
   // ─── Web client connection handler ──────────────────────────────────────────
 
   private handleWebConnection(ws: WebSocket, req: { url?: string }): void {
-    const token = extractQueryParam(req.url ?? "", "token");
-    const accountId = this.verifyWebToken(token);
+    const url = req.url ?? "";
 
+    // Challenge-response auth for /ws/<bot_id> and /bot/bots/<bot_id>
+    const botIdFromPath = extractBotIdFromPath(url);
+    if (botIdFromPath) {
+      this.handleWebConnectionWithAuth(ws, botIdFromPath);
+      return;
+    }
+
+    // Legacy token-based auth: /ws?token=account:<account_id>
+    const token = extractQueryParam(url, "token");
+    const accountId = this.verifyWebToken(token);
     if (!accountId) {
       ws.close(4001, "Unauthorized");
       return;
     }
+    this.setupWebClient(ws, accountId, undefined);
+  }
 
+  private handleWebConnectionWithAuth(ws: WebSocket, botId: string): void {
+    const nonce = generateNonce();
+    const authTimeout = setTimeout(() => {
+      if (ws.readyState === WebSocket.OPEN) ws.close(4001, "Auth timeout");
+    }, 15_000);
+
+    this.send(ws, { type: "auth_challenge", id: randomUUID(), payload: { nonce } });
+
+    ws.once("message", (raw) => {
+      clearTimeout(authTimeout);
+
+      let msg: Envelope;
+      try {
+        msg = JSON.parse(raw.toString()) as Envelope;
+      } catch {
+        ws.close(4002, "Invalid JSON");
+        return;
+      }
+
+      if (msg.type !== "web_auth") {
+        ws.close(4003, "Expected web_auth");
+        return;
+      }
+
+      const { password } = (msg.payload ?? {}) as { password?: string };
+      const bot = this.routing.getBot(botId);
+
+      if (!bot) {
+        this.send(ws, {
+          type: "auth_failed",
+          id: msg.id,
+          payload: { message: "Bot is not connected to relay" },
+        });
+        ws.close(4004, "Bot not found");
+        return;
+      }
+
+      const secret = bot.connection_password ?? this.cfg.connectionSecret;
+      if (secret && password !== secret) {
+        this.send(ws, {
+          type: "auth_failed",
+          id: msg.id,
+          payload: { message: "Invalid connection password" },
+        });
+        ws.close(4001, "AUTH_FAILED");
+        return;
+      }
+
+      this.send(ws, { type: "auth_ok", id: msg.id, payload: { account_id: bot.account_id } });
+      this.setupWebClient(ws, bot.account_id, botId);
+    });
+
+    ws.on("error", () => clearTimeout(authTimeout));
+    ws.on("close", () => clearTimeout(authTimeout));
+  }
+
+  private setupWebClient(ws: WebSocket, accountId: string, defaultBotId: string | undefined): void {
     const client: WebClientRecord = {
       ws,
       account_id: accountId,
+      default_bot_id: defaultBotId,
       connected_at: Date.now(),
       last_ping_at: Date.now(),
     };
@@ -370,7 +447,7 @@ export class RelayServer {
       logger.error("Web client error", { err: err.message });
     });
 
-    logger.info("Web client connected", { accountId });
+    logger.info("Web client connected", { accountId, defaultBotId });
   }
 
   private handleWebMessage(
@@ -396,7 +473,20 @@ export class RelayServer {
       return;
     }
 
-    const { bot_id, method, params } = msg.payload;
+    const { bot_id: msgBotId, method, params } = msg.payload;
+    const bot_id = msgBotId ?? client.default_bot_id;
+
+    if (!bot_id) {
+      this.sendWeb(ws, {
+        type: "error",
+        id: msg.id,
+        payload: {
+          code: "BOT_NOT_FOUND",
+          message: "No bot_id specified and none set on connection",
+        },
+      });
+      return;
+    }
 
     const bot = this.routing.getBotScoped(bot_id, client.account_id);
     if (!bot) {
@@ -576,4 +666,12 @@ function extractQueryParam(url: string, key: string): string | null {
   if (idx === -1) return null;
   const params = new URLSearchParams(url.slice(idx + 1));
   return params.get(key);
+}
+
+/** Extract bot UUID from /ws/<uuid> or /bot/bots/<uuid> paths */
+function extractBotIdFromPath(url: string): string | undefined {
+  const m = url.match(
+    /^\/(?:ws|bot\/bots)\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+  );
+  return m?.[1];
 }

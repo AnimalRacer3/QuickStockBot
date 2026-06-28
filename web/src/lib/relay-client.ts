@@ -60,9 +60,18 @@ export class RelayClient {
   connect(relayUrl: string, password: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.setConnectionState("connecting");
+      // Normalize http(s):// → ws(s):// so users can paste either form
+      let normalizedUrl = relayUrl
+        .replace(/^https:\/\//i, "wss://")
+        .replace(/^http:\/\//i, "ws://");
+      // Rewrite /bot/bots/<uuid> to /ws/<uuid> so users can paste the wizard-generated URL
+      normalizedUrl = normalizedUrl.replace(
+        /\/bot\/bots\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i,
+        "/ws/$1"
+      );
       let ws: WebSocket;
       try {
-        ws = new WebSocket(relayUrl);
+        ws = new WebSocket(normalizedUrl);
       } catch {
         this.setConnectionState("error");
         reject(new Error("Failed to create WebSocket"));
