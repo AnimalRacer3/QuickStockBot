@@ -173,11 +173,15 @@ def _build_settings_response(raw: dict[str, str | None]) -> dict[str, Any]:
         # Scanner
         "pre_open_lead_hours": dbmod.coerce_float(raw.get("pre_open_lead_hours"), 1.0),
         "scan_duration_hours": dbmod.coerce_float(raw.get("scan_duration_hours"), 3.0),
-        "scanner_refresh_seconds": dbmod.coerce_int(raw.get("scanner_refresh_seconds"), 60),
+        "scanner_refresh_seconds": dbmod.coerce_int(
+            raw.get("scanner_refresh_seconds"), 60
+        ),
         "relative_volume_min": dbmod.coerce_float(raw.get("relative_volume_min"), 2.0),
         "gap_up_min_pct": dbmod.coerce_float(raw.get("gap_up_min_pct"), 5.0),
         "max_float_shares": dbmod.coerce_int(raw.get("max_float_shares"), 20_000_000),
-        "include_unknown_float": dbmod.coerce_bool(raw.get("include_unknown_float"), True),
+        "include_unknown_float": dbmod.coerce_bool(
+            raw.get("include_unknown_float"), True
+        ),
         "require_news": dbmod.coerce_bool(raw.get("require_news"), True),
         "active_tickers_n": dbmod.coerce_int(raw.get("active_tickers_n"), 5),
         "prior_profit_bias_weight": dbmod.coerce_float(

@@ -81,7 +81,9 @@ class DbCursor:
         return _to_row(self._cur.fetchone())
 
     def fetchall(self) -> list[_Row]:
-        return [r for r in (_to_row(raw) for raw in self._cur.fetchall()) if r is not None]
+        return [
+            r for r in (_to_row(raw) for raw in self._cur.fetchall()) if r is not None
+        ]
 
     def __iter__(self) -> Iterator[_Row]:
         for raw in self._cur:

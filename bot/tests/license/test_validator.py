@@ -88,9 +88,7 @@ def _seed_last_valid(db: DbConn, seconds_ago: float) -> None:
     db.commit()
 
 
-def _make_validator(
-    db: DbConn, response: dict | Exception
-) -> LicenseValidator:
+def _make_validator(db: DbConn, response: dict | Exception) -> LicenseValidator:
     return LicenseValidator(
         validate_url="https://api.example.com/validate",
         license_key="QSB-TEST-0000-0000-0000",
@@ -147,18 +145,14 @@ class TestRevokedStatus:
         assert status.trading_allowed is False
         assert "expired" in status.reason
 
-    def test_revoked_without_last_valid_stops_trading(
-        self, db: DbConn
-    ) -> None:
+    def test_revoked_without_last_valid_stops_trading(self, db: DbConn) -> None:
         # Never had a successful validation
         v = _make_validator(db, {"status": "revoked"})
         status = v.check_once()
         assert status.state == "revoked"
         assert status.trading_allowed is False
 
-    def test_revoked_exactly_at_grace_boundary_stops_trading(
-        self, db: DbConn
-    ) -> None:
+    def test_revoked_exactly_at_grace_boundary_stops_trading(self, db: DbConn) -> None:
         # last_valid_ts is exactly GRACE_PERIOD_SECONDS ago → outside window
         _seed_last_valid(db, seconds_ago=GRACE_PERIOD_SECONDS)
         v = _make_validator(db, {"status": "revoked"})
@@ -182,9 +176,7 @@ class TestOfflineStatus:
         assert status.state == "offline"
         assert status.trading_allowed is False
 
-    def test_offline_no_prior_validation_stops_trading(
-        self, db: DbConn
-    ) -> None:
+    def test_offline_no_prior_validation_stops_trading(self, db: DbConn) -> None:
         v = _make_validator(db, httpx.ConnectError("network unreachable"))
         status = v.check_once()
         assert status.state == "offline"
@@ -302,18 +294,14 @@ class TestLiveModeConfirmation:
         with pytest.raises(ValueError, match="live_mode_confirmation_required"):
             handle_update_settings(handler_db, {"patch": {"paper_trading": False}})
 
-    def test_enabling_live_with_confirmation_succeeds(
-        self, handler_db: DbConn
-    ) -> None:
+    def test_enabling_live_with_confirmation_succeeds(self, handler_db: DbConn) -> None:
         result = handle_update_settings(
             handler_db,
             {"patch": {"paper_trading": False, "live_mode_confirmed": True}},
         )
         assert result["paper_trading"] is False
 
-    def test_confirmation_flag_not_persisted(
-        self, handler_db: DbConn
-    ) -> None:
+    def test_confirmation_flag_not_persisted(self, handler_db: DbConn) -> None:
         handle_update_settings(
             handler_db,
             {"patch": {"paper_trading": False, "live_mode_confirmed": True}},
@@ -340,16 +328,12 @@ class TestLiveModeConfirmation:
 
 
 class TestNoticesInState:
-    def test_account_equity_notice_always_present(
-        self, handler_db: DbConn
-    ) -> None:
+    def test_account_equity_notice_always_present(self, handler_db: DbConn) -> None:
         result = handle_get_state(handler_db, {})
         types = {n["type"] for n in result["notices"]}
         assert "account_equity" in types
 
-    def test_pdt_framework_notice_has_expected_fields(
-        self, handler_db: DbConn
-    ) -> None:
+    def test_pdt_framework_notice_has_expected_fields(self, handler_db: DbConn) -> None:
         result = handle_get_state(handler_db, {})
         notice = next(n for n in result["notices"] if n["type"] == "account_equity")
         fw = notice["pdt_framework"]
@@ -359,9 +343,7 @@ class TestNoticesInState:
         assert fw["broker_may_still_use_old_rules"] is True
         assert "2027-10-20" in fw["broker_migration_deadline"]
 
-    def test_live_mode_notice_appears_when_live(
-        self, handler_db: DbConn
-    ) -> None:
+    def test_live_mode_notice_appears_when_live(self, handler_db: DbConn) -> None:
         handle_update_settings(
             handler_db,
             {"patch": {"paper_trading": False, "live_mode_confirmed": True}},
@@ -370,9 +352,7 @@ class TestNoticesInState:
         types = {n["type"] for n in result["notices"]}
         assert "live_mode" in types
 
-    def test_no_live_mode_notice_in_paper_mode(
-        self, handler_db: DbConn
-    ) -> None:
+    def test_no_live_mode_notice_in_paper_mode(self, handler_db: DbConn) -> None:
         result = handle_get_state(handler_db, {})
         types = {n["type"] for n in result["notices"]}
         assert "live_mode" not in types
@@ -424,9 +404,7 @@ class TestNoticesInState:
         types = {n["type"] for n in result["notices"]}
         assert "pdt_restricted" not in types
 
-    def test_license_notice_appears_when_revoked(
-        self, handler_db: DbConn
-    ) -> None:
+    def test_license_notice_appears_when_revoked(self, handler_db: DbConn) -> None:
         now = int(time.time())
         for key, value in [
             ("_license_cached_status", "revoked"),
@@ -471,9 +449,7 @@ class TestNoticesInState:
         assert lic_notice["trading_allowed"] is False
         assert lic_notice["severity"] == "error"
 
-    def test_no_license_notice_when_active(
-        self, handler_db: DbConn
-    ) -> None:
+    def test_no_license_notice_when_active(self, handler_db: DbConn) -> None:
         now = int(time.time())
         for key, value in [
             ("_license_cached_status", "active"),

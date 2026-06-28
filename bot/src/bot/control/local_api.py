@@ -56,9 +56,7 @@ def api_get_active_tickers(db: DbConn = Depends(_get_db)) -> JSONResponse:
 
 
 @app.get("/tickers/{symbol}")
-def api_get_ticker_detail(
-    symbol: str, db: DbConn = Depends(_get_db)
-) -> JSONResponse:
+def api_get_ticker_detail(symbol: str, db: DbConn = Depends(_get_db)) -> JSONResponse:
     try:
         return JSONResponse(handle_get_ticker_detail(db, {"symbol": symbol}))
     except ValueError as exc:
@@ -95,9 +93,7 @@ class ListsBody(BaseModel):
 
 
 @app.put("/lists")
-def api_update_lists(
-    body: ListsBody, db: DbConn = Depends(_get_db)
-) -> JSONResponse:
+def api_update_lists(body: ListsBody, db: DbConn = Depends(_get_db)) -> JSONResponse:
     params: dict = {}
     if body.watchlist is not None:
         params["watchlist"] = body.watchlist
@@ -118,9 +114,7 @@ def api_get_trade_history(
 
 
 @app.get("/orders/{order_id}")
-def api_get_order_detail(
-    order_id: str, db: DbConn = Depends(_get_db)
-) -> JSONResponse:
+def api_get_order_detail(order_id: str, db: DbConn = Depends(_get_db)) -> JSONResponse:
     try:
         return JSONResponse(handle_get_order_detail(db, {"order_id": order_id}))
     except ValueError as exc:
@@ -145,9 +139,7 @@ def api_trigger_scan(db: DbConn = Depends(_get_db)) -> JSONResponse:
 
 
 @app.get("/logs")
-def api_get_logs(
-    limit: int = 100, db: DbConn = Depends(_get_db)
-) -> JSONResponse:
+def api_get_logs(limit: int = 100, db: DbConn = Depends(_get_db)) -> JSONResponse:
     rows = db.execute(
         "SELECT id, level, message, context, occurred_at FROM log_events"
         " ORDER BY occurred_at DESC LIMIT %s",

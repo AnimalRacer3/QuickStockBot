@@ -184,7 +184,13 @@ _SCHEMA_SQL = """
     CREATE INDEX IF NOT EXISTS idx_ml_samples_trade_id           ON ml_samples(trade_id)
 """
 
-_REQUIRED_ENV_VARS = ("RELAY_URL", "BOT_ID", "LICENSE_KEY", "CONNECTION_PASSWORD", "DATABASE_URL")
+_REQUIRED_ENV_VARS = (
+    "RELAY_URL",
+    "BOT_ID",
+    "LICENSE_KEY",
+    "CONNECTION_PASSWORD",
+    "DATABASE_URL",
+)
 
 # Maps Python import name → pip install name for every third-party dependency.
 _REQUIRED_PACKAGES: dict[str, str] = {
@@ -603,9 +609,7 @@ async def _scan_loop(db: DbConn) -> None:
                         ticker.price,
                         ticker.macd_state.value,
                         ticker.macd_state.value,
-                        "active"
-                        if ticker.symbol in result.active_set
-                        else "watching",
+                        "active" if ticker.symbol in result.active_set else "watching",
                         scan_ts,
                         ticker.gap_pct,
                         ticker.rvol,
