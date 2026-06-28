@@ -242,7 +242,12 @@ export class RelayServer {
       }
     }
 
-    const licenseResult = await validateLicense(license_key, bot_id, this.cfg.validateUrl, this.cfg.saasSecret || undefined);
+    const licenseResult = await validateLicense(
+      license_key,
+      bot_id,
+      this.cfg.validateUrl,
+      this.cfg.saasSecret || undefined
+    );
 
     if (!licenseResult.valid || !licenseResult.account_id) {
       const reason = licenseResult.error ?? "license invalid";
