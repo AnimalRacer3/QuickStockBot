@@ -7,11 +7,11 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import sqlite3
 import uuid
 
 import pytest
 
-from bot.control.connection import DbConn
 from bot.control.relay_client import RelayClient, compute_connection_proof
 from tests.control.conftest import insert_ticker
 from tests.control.mock_relay import MockRelaySocket, MockSocketFactory
@@ -19,7 +19,7 @@ from tests.control.mock_relay import MockRelaySocket, MockSocketFactory
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 
-def _client(db: DbConn, factory: MockSocketFactory, **kw) -> RelayClient:
+def _client(db: sqlite3.Connection, factory: MockSocketFactory, **kw) -> RelayClient:
     return RelayClient(
         url="ws://mock",
         bot_id=kw.get("bot_id", "test-bot"),
@@ -31,7 +31,7 @@ def _client(db: DbConn, factory: MockSocketFactory, **kw) -> RelayClient:
 
 
 async def _start(
-    db: DbConn,
+    db: sqlite3.Connection,
     factory: MockSocketFactory,
     **kw,
 ) -> tuple[RelayClient, asyncio.Task, MockRelaySocket]:
@@ -66,7 +66,7 @@ def test_wrong_password_gives_different_proof() -> None:
 
 
 @pytest.mark.anyio
-async def test_auth_success_sends_register(db: DbConn) -> None:
+async def test_auth_success_sends_register(db: sqlite3.Connection) -> None:
     """Client sends a valid register frame with the correct HMAC proof."""
     nonce = "challenge-nonce"
     password = "secret"
@@ -89,7 +89,7 @@ async def test_auth_success_sends_register(db: DbConn) -> None:
 
 @pytest.mark.anyio
 async def test_wrong_password_proof_differs_from_correct(
-    db: DbConn,
+    db: sqlite3.Connection,
 ) -> None:
     """Bot using the wrong password produces a proof that doesn't match the correct one."""
     nonce = "nonce-xyz"
@@ -109,7 +109,7 @@ async def test_wrong_password_proof_differs_from_correct(
 
 
 @pytest.mark.anyio
-async def test_dispatches_rpc_request(db: DbConn) -> None:
+async def test_dispatches_rpc_request(db: sqlite3.Connection) -> None:
     """Client replies to rpc_request with a matching rpc_response."""
     factory = MockSocketFactory()
     _, task, socket = await _start(db, factory)
@@ -134,7 +134,7 @@ async def test_dispatches_rpc_request(db: DbConn) -> None:
 
 
 @pytest.mark.anyio
-async def test_unknown_method_returns_error(db: DbConn) -> None:
+async def test_unknown_method_returns_error(db: sqlite3.Connection) -> None:
     factory = MockSocketFactory()
     _, task, socket = await _start(db, factory)
     await socket.pull()  # register
@@ -156,7 +156,7 @@ async def test_unknown_method_returns_error(db: DbConn) -> None:
 
 
 @pytest.mark.anyio
-async def test_rpc_response_shares_request_id(db: DbConn) -> None:
+async def test_rpc_response_shares_request_id(db: sqlite3.Connection) -> None:
     """rpc_response must carry the same id as the originating rpc_request."""
     factory = MockSocketFactory()
     _, task, socket = await _start(db, factory)
@@ -182,7 +182,7 @@ async def test_rpc_response_shares_request_id(db: DbConn) -> None:
 
 
 @pytest.mark.anyio
-async def test_auto_reconnect_after_disconnect(db: DbConn) -> None:
+async def test_auto_reconnect_after_disconnect(db: sqlite3.Connection) -> None:
     """When the first session drops, run() reconnects and creates a second socket."""
     connection_count = 0
 
@@ -236,7 +236,7 @@ async def test_auto_reconnect_after_disconnect(db: DbConn) -> None:
 
 
 @pytest.mark.anyio
-async def test_emit_log_after_subscribe(db: DbConn) -> None:
+async def test_emit_log_after_subscribe(db: sqlite3.Connection) -> None:
     """After subscribe_logs, emit_log sends a log frame."""
     factory = MockSocketFactory()
     client, task, socket = await _start(db, factory)
@@ -269,7 +269,7 @@ async def test_emit_log_after_subscribe(db: DbConn) -> None:
 
 
 @pytest.mark.anyio
-async def test_emit_log_filtered_by_level(db: DbConn) -> None:
+async def test_emit_log_filtered_by_level(db: sqlite3.Connection) -> None:
     """Logs below min_level are suppressed."""
     factory = MockSocketFactory()
     client, task, socket = await _start(db, factory)
@@ -300,7 +300,7 @@ async def test_emit_log_filtered_by_level(db: DbConn) -> None:
 
 
 @pytest.mark.anyio
-async def test_emit_log_without_subscription_is_silent(db: DbConn) -> None:
+async def test_emit_log_without_subscription_is_silent(db: sqlite3.Connection) -> None:
     """emit_log before subscribe_logs does nothing (no crash, nothing sent)."""
     factory = MockSocketFactory()
     client, task, socket = await _start(db, factory)
@@ -317,7 +317,7 @@ async def test_emit_log_without_subscription_is_silent(db: DbConn) -> None:
 
 
 @pytest.mark.anyio
-async def test_emit_state_update(db: DbConn) -> None:
+async def test_emit_state_update(db: sqlite3.Connection) -> None:
     insert_ticker(db, symbol="AAPL")
     factory = MockSocketFactory()
     client, task, socket = await _start(db, factory)

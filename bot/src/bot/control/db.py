@@ -1,19 +1,17 @@
 """
-Lightweight database access for the control service.
+Lightweight SQLite access for the control service.
 
-All functions accept a DbConn so the caller controls connection lifecycle.
-In production DbConn wraps a psycopg2 connection (DATABASE_URL); in tests
-it wraps an in-memory sqlite3 connection.  All SQL uses %s placeholders and
-PostgreSQL-compatible ON CONFLICT syntax.
+All functions accept a bare sqlite3.Connection so the caller controls
+connection lifecycle and the functions are trivially testable with an
+in-memory database.
 """
 
 from __future__ import annotations
 
 import datetime
 import json
+import sqlite3
 import time
-
-from bot.control.connection import DbConn
 
 # ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -27,7 +25,6 @@ def ts_to_iso(ts: int | None) -> str | None:
 # ─── Settings ─────────────────────────────────────────────────────────────────
 
 SETTING_DEFAULTS: dict[str, str | None] = {
-    # Connection / auth
     "bot_id": "",
     "relay_url": "",
     "license_key": "",
@@ -36,68 +33,32 @@ SETTING_DEFAULTS: dict[str, str | None] = {
     "broker": "alpaca",
     "broker_api_key": None,
     "broker_api_secret": None,
-    # Positions / scoring
     "max_positions": "5",
     "risk_per_trade_pct": "1.0",
     "daily_risk_pct": "5.0",
     "risk_override_enabled": "false",
     "min_score": "60.0",
     "auto_trade": "false",
-    "log_level": "info",
-    # Daily target mode
-    "daily_target_mode": "giveback",
-    "daily_giveback_pct": "25.0",
-    # Scanner
-    "pre_open_lead_hours": "1.0",
-    "scan_duration_hours": "3.0",
-    "scanner_refresh_seconds": "60",
-    "relative_volume_min": "2.0",
-    "gap_up_min_pct": "5.0",
-    "max_float_shares": "20000000",
-    "include_unknown_float": "true",
-    "require_news": "true",
-    "active_tickers_n": "5",
-    "prior_profit_bias_weight": "0.5",
-    # Patterns / MACD
-    "enabled_patterns": '["bullish_engulfing","hammer","morning_star","bullish_continuation"]',
-    "pattern_candle_lookback": "5",
     "macd_fast": "12",
     "macd_slow": "26",
     "macd_signal": "9",
-    "macd_slope_lookback": "3",
-    "macd_enforce_above_zero": "false",
-    # Risk / daily limits (web-facing names; None = not explicitly set,
-    # _build_settings_response falls back to legacy daily_risk_pct / risk_override_enabled)
-    "daily_max_loss_pct": None,
-    "daily_profit_target_pct": "7.0",
-    "override_risk_per_trade": None,
-    "flatten_on_daily_loss": "true",
-    "flatten_on_daily_profit": "false",
-    # Exits
-    "exit_mode": "trail_off",
-    "trail_off_trigger": "candle_pattern",
-    "trail_off_fraction_per_candle": "0.25",
-    "stop_loss_pct": "2.0",
-    "take_profit_pct": "4.0",
-    "trailing_stop_enabled": "false",
-    "force_close_at_close": "true",
+    "log_level": "info",
 }
 
 
-def get_all_settings_raw(db: DbConn) -> dict[str, str | None]:
+def get_all_settings_raw(db: sqlite3.Connection) -> dict[str, str | None]:
     """Return all settings as a raw key→string map with defaults filled in."""
     rows = db.execute("SELECT key, value FROM settings").fetchall()
     result: dict[str, str | None] = dict(SETTING_DEFAULTS)
-    for row in rows:
-        result[row["key"]] = row["value"]
+    for key, value in rows:
+        result[key] = value
     return result
 
 
-def set_setting(db: DbConn, key: str, value: str) -> None:
+def set_setting(db: sqlite3.Connection, key: str, value: str) -> None:
     now = int(time.time())
     db.execute(
-        "INSERT INTO settings (key, value, updated_at) VALUES (%s, %s, %s)"
-        " ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at",
+        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
         (key, value, now),
     )
 
@@ -147,8 +108,8 @@ def serialize_value(value: object) -> str:
 # ─── Tickers ──────────────────────────────────────────────────────────────────
 
 
-def row_to_ticker(row: object) -> dict:
-    r = dict(row)  # type: ignore[call-overload]
+def row_to_ticker(row: sqlite3.Row | dict) -> dict:
+    r = dict(row)
 
     macd_state: dict | None = None
     if r.get("macd_state_json"):
@@ -197,14 +158,14 @@ def row_to_ticker(row: object) -> dict:
     return ticker
 
 
-def get_all_tickers(db: DbConn) -> list[dict]:
+def get_all_tickers(db: sqlite3.Connection) -> list[dict]:
     rows = db.execute("SELECT * FROM active_tickers ORDER BY symbol").fetchall()
     return [row_to_ticker(r) for r in rows]
 
 
-def get_ticker(db: DbConn, symbol: str) -> dict | None:
+def get_ticker(db: sqlite3.Connection, symbol: str) -> dict | None:
     row = db.execute(
-        "SELECT * FROM active_tickers WHERE symbol = %s", (symbol,)
+        "SELECT * FROM active_tickers WHERE symbol = ?", (symbol,)
     ).fetchone()
     return row_to_ticker(row) if row else None
 
@@ -212,8 +173,8 @@ def get_ticker(db: DbConn, symbol: str) -> dict | None:
 # ─── Orders ───────────────────────────────────────────────────────────────────
 
 
-def row_to_order(row: object) -> dict:
-    r = dict(row)  # type: ignore[call-overload]
+def row_to_order(row: sqlite3.Row | dict) -> dict:
+    r = dict(row)
     side = r.get("side", "buy")
     order_type = r.get("order_type", "market")
 
@@ -235,8 +196,8 @@ def row_to_order(row: object) -> dict:
     }
 
 
-def get_order(db: DbConn, order_id: str) -> dict | None:
-    row = db.execute("SELECT * FROM orders WHERE id = %s", (order_id,)).fetchone()
+def get_order(db: sqlite3.Connection, order_id: str) -> dict | None:
+    row = db.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
     return row_to_order(row) if row else None
 
 
@@ -244,18 +205,17 @@ def get_order(db: DbConn, order_id: str) -> dict | None:
 
 
 def get_trade_history(
-    db: DbConn, limit: int = 100, offset: int = 0
+    db: sqlite3.Connection, limit: int = 100, offset: int = 0
 ) -> tuple[list[dict], int]:
-    total_row = db.execute("SELECT COUNT(*) AS cnt FROM trades").fetchone()
-    total = total_row["cnt"] if total_row else 0
+    total = db.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
     rows = db.execute(
-        "SELECT * FROM trades ORDER BY opened_at DESC LIMIT %s OFFSET %s",
+        "SELECT * FROM trades ORDER BY opened_at DESC LIMIT ? OFFSET ?",
         (limit, offset),
     ).fetchall()
 
     trades = []
     for row in rows:
-        r = dict(row)  # type: ignore[call-overload]
+        r = dict(row)
         entry = get_order(db, r["entry_order_id"])
         exit_ = get_order(db, r["exit_order_id"]) if r.get("exit_order_id") else None
         trades.append(
@@ -276,23 +236,23 @@ def get_trade_history(
 # ─── Lists ────────────────────────────────────────────────────────────────────
 
 
-def get_list_symbols(db: DbConn, list_type: str) -> list[str]:
+def get_list_symbols(db: sqlite3.Connection, list_type: str) -> list[str]:
     rows = db.execute(
-        "SELECT symbol FROM lists WHERE list_type = %s AND active = 1 ORDER BY symbol",
+        "SELECT symbol FROM lists WHERE list_type = ? AND active = 1 ORDER BY symbol",
         (list_type,),
     ).fetchall()
-    return [r["symbol"] for r in rows]
+    return [r[0] for r in rows]
 
 
-def replace_list(db: DbConn, list_type: str, symbols: list[str]) -> None:
+def replace_list(db: sqlite3.Connection, list_type: str, symbols: list[str]) -> None:
     now = int(time.time())
-    db.execute("UPDATE lists SET active = 0 WHERE list_type = %s", (list_type,))
+    db.execute("UPDATE lists SET active = 0 WHERE list_type = ?", (list_type,))
     for sym in symbols:
         db.execute(
-            "INSERT INTO lists (symbol, list_type, active, added_at)"
-            " VALUES (%s, %s, 1, %s)"
-            " ON CONFLICT (symbol, list_type)"
-            " DO UPDATE SET active = 1, added_at = EXCLUDED.added_at",
+            """INSERT INTO lists (symbol, list_type, active, added_at)
+               VALUES (?, ?, 1, ?)
+               ON CONFLICT(symbol, list_type)
+               DO UPDATE SET active = 1, added_at = excluded.added_at""",
             (sym, list_type, now),
         )
     db.commit()
@@ -301,30 +261,29 @@ def replace_list(db: DbConn, list_type: str, symbols: list[str]) -> None:
 # ─── Run-day tracking ─────────────────────────────────────────────────────────
 
 
-def mark_run_day(db: DbConn, date: str | None = None) -> None:
+def mark_run_day(db: sqlite3.Connection, date: str | None = None) -> None:
     if date is None:
         date = datetime.date.today().isoformat()
     now = int(time.time())
     db.execute(
-        "INSERT INTO run_days (date, marked_at) VALUES (%s, %s)"
-        " ON CONFLICT (date) DO UPDATE SET marked_at = EXCLUDED.marked_at",
+        "INSERT OR REPLACE INTO run_days (date, marked_at) VALUES (?, ?)",
         (date, now),
     )
     db.commit()
 
 
-def get_run_days(db: DbConn, start: str, end: str) -> list[str]:
+def get_run_days(db: sqlite3.Connection, start: str, end: str) -> list[str]:
     rows = db.execute(
-        "SELECT date FROM run_days WHERE date >= %s AND date <= %s ORDER BY date",
+        "SELECT date FROM run_days WHERE date >= ? AND date <= ? ORDER BY date",
         (start, end),
     ).fetchall()
-    return [r["date"] for r in rows]
+    return [r[0] for r in rows]
 
 
 # ─── Daily P/L ────────────────────────────────────────────────────────────────
 
 
-def get_daily_pl(db: DbConn, start: str, end: str) -> list[dict]:
+def get_daily_pl(db: sqlite3.Connection, start: str, end: str) -> list[dict]:
     run_days = get_run_days(db, start, end)
     if not run_days:
         return []
@@ -343,13 +302,12 @@ def get_daily_pl(db: DbConn, start: str, end: str) -> list[dict]:
         day_end = day_start + 86400
 
         rows = db.execute(
-            "SELECT net_pnl FROM trades"
-            " WHERE status = 'closed' AND closed_at >= %s AND closed_at < %s",
+            "SELECT net_pnl FROM trades WHERE status = 'closed' AND closed_at >= ? AND closed_at < ?",
             (day_start, day_end),
         ).fetchall()
 
         trade_count = len(rows)
-        net_pl = sum(r["net_pnl"] or 0.0 for r in rows)
+        net_pl = sum(r[0] or 0.0 for r in rows)
 
         if trade_count == 0 or net_pl == 0:
             color = "blue"

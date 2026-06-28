@@ -226,10 +226,6 @@ export class RelayClient {
     await this.rpc("subscribe_logs", { categories: [], min_level: "info" });
   }
 
-  async triggerScan(): Promise<{ queued: boolean }> {
-    return this.rpc("trigger_scan");
-  }
-
   onLog(cb: LogListener): () => void {
     this.logListeners.add(cb);
     return () => this.logListeners.delete(cb);

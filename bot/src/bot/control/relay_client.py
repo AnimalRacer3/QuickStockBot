@@ -14,6 +14,7 @@ import hashlib
 import hmac
 import json
 import logging
+import sqlite3
 import uuid
 from collections.abc import Callable
 from typing import Any
@@ -21,7 +22,6 @@ from typing import Any
 import websockets
 import websockets.exceptions
 
-from bot.control.connection import DbConn
 from bot.control.handlers import dispatch
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class RelayClient:
         bot_id: str,
         license_key: str,
         connection_password: str,
-        db: DbConn,
+        db: sqlite3.Connection,
         socket_factory: Callable | None = None,
     ) -> None:
         self.url = url

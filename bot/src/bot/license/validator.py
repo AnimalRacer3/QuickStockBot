@@ -13,12 +13,11 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import logging
+import sqlite3
 import time
 from typing import Any, Literal, Protocol, cast, runtime_checkable
 
 import httpx
-
-from bot.control.connection import DbConn
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +64,7 @@ class LicenseValidator:
         self,
         validate_url: str,
         license_key: str,
-        db: DbConn,
+        db: sqlite3.Connection,
         http_client: _HttpClient | None = None,
     ) -> None:
         self._url = validate_url
@@ -194,11 +193,11 @@ class LicenseValidator:
 
     def _load_last_valid_ts(self) -> float | None:
         row = self._db.execute(
-            "SELECT value FROM settings WHERE key = %s", (_KEY_LAST_VALID_TS,)
+            "SELECT value FROM settings WHERE key = ?", (_KEY_LAST_VALID_TS,)
         ).fetchone()
-        if row and row["value"]:
+        if row and row[0]:
             try:
-                return float(row["value"])
+                return float(row[0])
             except (ValueError, TypeError):
                 pass
         return None
@@ -206,9 +205,7 @@ class LicenseValidator:
     def _save_last_valid_ts(self, ts: float) -> None:
         now_int = int(time.time())
         self._db.execute(
-            "INSERT INTO settings (key, value, updated_at) VALUES (%s, %s, %s)"
-            " ON CONFLICT (key) DO UPDATE SET"
-            " value = EXCLUDED.value, updated_at = EXCLUDED.updated_at",
+            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
             (_KEY_LAST_VALID_TS, str(ts), now_int),
         )
         self._db.commit()
@@ -222,18 +219,16 @@ class LicenseValidator:
         ]
         for key, value in pairs:
             self._db.execute(
-                "INSERT INTO settings (key, value, updated_at) VALUES (%s, %s, %s)"
-                " ON CONFLICT (key) DO UPDATE SET"
-                " value = EXCLUDED.value, updated_at = EXCLUDED.updated_at",
+                "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
                 (key, value, now_int),
             )
         self._db.commit()
 
     def _load_cached(self) -> LicenseStatus:
         rows = {
-            r["key"]: r["value"]
+            r[0]: r[1]
             for r in self._db.execute(
-                "SELECT key, value FROM settings WHERE key IN (%s, %s, %s, %s)",
+                "SELECT key, value FROM settings WHERE key IN (?, ?, ?, ?)",
                 (_KEY_STATUS, _KEY_TRADING_ALLOWED, _KEY_REASON, _KEY_LAST_VALID_TS),
             ).fetchall()
         }
