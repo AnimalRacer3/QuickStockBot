@@ -231,17 +231,7 @@ export class RelayServer {
       return;
     }
 
-    if (this.cfg.connectionSecret) {
-      if (!verifyHmac(pending.nonce, this.cfg.connectionSecret, connection_password_proof)) {
-        logger.warn("Bot auth failed: bad HMAC proof", { bot_id });
-        ws.close(
-          4001,
-          "AUTH_FAILED: wrong CONNECTION_PASSWORD — it must match RELAY_CONNECTION_SECRET on the relay server"
-        );
-        return;
-      }
-    }
-
+    // Validate license first so we can retrieve the per-user connection password.
     const licenseResult = await validateLicense(
       license_key,
       bot_id,
@@ -260,6 +250,32 @@ export class RelayServer {
             ? `AUTH_FAILED: ${reason} — check your LICENSE_KEY or renew your subscription`
             : `AUTH_FAILED: license validation failed (${reason}) — check SAAS_VALIDATE_URL on the relay`;
       ws.close(4001, closeReason);
+      return;
+    }
+
+    // Determine which secret to use for HMAC verification.
+    // Per-user password (from the SaaS) takes precedence over the global shared secret.
+    const hmacSecret = licenseResult.connection_password || this.cfg.connectionSecret;
+
+    if (hmacSecret) {
+      if (!verifyHmac(pending.nonce, hmacSecret, connection_password_proof)) {
+        logger.warn("Bot auth failed: bad HMAC proof", { bot_id });
+        ws.close(
+          4001,
+          licenseResult.connection_password
+            ? "AUTH_FAILED: wrong CONNECTION_PASSWORD — it must match the password you set during installation"
+            : "AUTH_FAILED: wrong CONNECTION_PASSWORD — it must match RELAY_CONNECTION_SECRET on the relay server"
+        );
+        return;
+      }
+    } else {
+      // Neither per-user password nor global secret is configured — reject for safety.
+      logger.warn("Bot auth failed: no connection password configured", { bot_id });
+      ws.close(
+        4001,
+        "AUTH_FAILED: no connection password set for this license — " +
+          "run the installer or set one via POST /api/licenses/set-password on the web app"
+      );
       return;
     }
 

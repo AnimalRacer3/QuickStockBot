@@ -9,6 +9,7 @@ export interface License {
   status: LicenseStatus;
   issuedAt: string;
   expiresAt: string | null;
+  connectionPassword: string | null;
 }
 
 /** Generates a cryptographically random key: QSB-XXXX-XXXX-XXXX-XXXX */
@@ -25,6 +26,7 @@ interface LicenseRow {
   status: string;
   issued_at: string;
   expires_at: string | null;
+  connection_password: string | null;
 }
 
 function rowToLicense(row: LicenseRow): License {
@@ -34,6 +36,7 @@ function rowToLicense(row: LicenseRow): License {
     status: row.status as LicenseStatus,
     issuedAt: row.issued_at,
     expiresAt: row.expires_at,
+    connectionPassword: row.connection_password ?? null,
   };
 }
 
@@ -44,14 +47,16 @@ export function createLicenseRepository(db: Database.Database) {
        VALUES (?, ?, 'active', ?, ?)`
     ),
     getLicense: db.prepare<[string], LicenseRow>(
-      `SELECT key, user_id, status, issued_at, expires_at FROM licenses WHERE key = ?`
+      `SELECT key, user_id, status, issued_at, expires_at, connection_password
+       FROM licenses WHERE key = ?`
     ),
     getByUserId: db.prepare<[string], LicenseRow>(
-      `SELECT key, user_id, status, issued_at, expires_at FROM licenses
-       WHERE user_id = ? AND status = 'active'
+      `SELECT key, user_id, status, issued_at, expires_at, connection_password
+       FROM licenses WHERE user_id = ? AND status = 'active'
        ORDER BY issued_at DESC LIMIT 1`
     ),
     updateStatus: db.prepare(`UPDATE licenses SET status = ? WHERE key = ? AND status != ?`),
+    setConnectionPassword: db.prepare(`UPDATE licenses SET connection_password = ? WHERE key = ?`),
   };
 
   return {
@@ -65,6 +70,7 @@ export function createLicenseRepository(db: Database.Database) {
         status: "active",
         issuedAt,
         expiresAt: expiresAt ?? null,
+        connectionPassword: null,
       };
     },
 
@@ -94,6 +100,11 @@ export function createLicenseRepository(db: Database.Database) {
     getLicenseByUserId(userId: string): License | null {
       const row = stmts.getByUserId.get(userId);
       return row ? rowToLicense(row) : null;
+    },
+
+    setConnectionPassword(key: string, password: string): boolean {
+      const result = stmts.setConnectionPassword.run(password, key);
+      return result.changes > 0;
     },
   };
 }

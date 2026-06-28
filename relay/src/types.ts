@@ -136,4 +136,6 @@ export interface LicenseValidationResult {
   valid: boolean;
   account_id?: string;
   error?: string;
+  /** Per-user connection password stored on the SaaS; used instead of the global RELAY_CONNECTION_SECRET. */
+  connection_password?: string | null;
 }

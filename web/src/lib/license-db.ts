@@ -28,14 +28,22 @@ function openDb(filePath: string): Database.Database {
 function migrate(db: Database.Database): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS licenses (
-      key        TEXT PRIMARY KEY,
-      user_id    TEXT NOT NULL,
-      status     TEXT NOT NULL DEFAULT 'active',
-      issued_at  TEXT NOT NULL,
-      expires_at TEXT
+      key                 TEXT PRIMARY KEY,
+      user_id             TEXT NOT NULL,
+      status              TEXT NOT NULL DEFAULT 'active',
+      issued_at           TEXT NOT NULL,
+      expires_at          TEXT,
+      connection_password TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_licenses_user_id ON licenses(user_id);
     CREATE INDEX IF NOT EXISTS idx_licenses_status  ON licenses(status);
   `);
+
+  // Additive migration for existing databases that lack the column.
+  try {
+    db.exec("ALTER TABLE licenses ADD COLUMN connection_password TEXT");
+  } catch {
+    // Column already exists — ignore.
+  }
 }
