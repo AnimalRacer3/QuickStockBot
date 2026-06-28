@@ -60,9 +60,13 @@ export class RelayClient {
   connect(relayUrl: string, password: string): Promise<void> {
     return new Promise((resolve, reject) => {
       this.setConnectionState("connecting");
+      // Normalize http(s):// → ws(s):// so users can paste either form
+      const normalizedUrl = relayUrl
+        .replace(/^https:\/\//i, "wss://")
+        .replace(/^http:\/\//i, "ws://");
       let ws: WebSocket;
       try {
-        ws = new WebSocket(relayUrl);
+        ws = new WebSocket(normalizedUrl);
       } catch {
         this.setConnectionState("error");
         reject(new Error("Failed to create WebSocket"));

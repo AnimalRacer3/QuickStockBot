@@ -35,7 +35,7 @@ export default function ConnectPage() {
             type="text"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            placeholder="ws://localhost:8080"
+            placeholder="wss://your-relay.up.railway.app/bot/bots/..."
             required
             aria-label="Relay URL"
             style={inputStyle}
