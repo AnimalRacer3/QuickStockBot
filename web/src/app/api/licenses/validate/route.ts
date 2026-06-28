@@ -58,5 +58,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ valid: false, error: `license is ${status}` });
   }
 
-  return NextResponse.json({ valid: true, account_id: license.userId });
+  return NextResponse.json({
+    valid: true,
+    account_id: license.userId,
+    connection_password: license.connectionPassword ?? null,
+  });
 }

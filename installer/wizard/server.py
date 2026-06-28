@@ -2,13 +2,55 @@
 
 from __future__ import annotations
 
+import os
 import uuid as _uuid_mod
 from typing import Any
+
+import urllib.request
+import urllib.error
+import json as _json
 
 from flask import Flask, Response, jsonify, make_response, request
 
 from wizard import config_writer, reachability, validator
 from wizard.html_wizard import WIZARD_HTML
+
+# Web app base URL — used to register the per-user connection password with the SaaS.
+# Set this env var when bundling the installer so it points at the production web app.
+_SAAS_BASE_URL = os.environ.get("SAAS_BASE_URL", "").rstrip("/")
+
+
+def _register_connection_password(license_key: str, connection_password: str) -> None:
+    """POST the connection password to the SaaS set-password endpoint.
+
+    Fails silently (logs only) so a network hiccup does not break installation.
+    The user can re-register via the dashboard or by re-running the installer.
+    """
+    if not _SAAS_BASE_URL:
+        return
+    url = f"{_SAAS_BASE_URL}/api/licenses/set-password"
+    payload = _json.dumps(
+        {"license_key": license_key, "connection_password": connection_password}
+    ).encode()
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            if resp.status not in (200, 201):
+                print(
+                    f"[installer] set-password returned HTTP {resp.status} — "
+                    "connection password not registered with SaaS."
+                )
+    except urllib.error.URLError as exc:
+        print(
+            f"[installer] Could not register connection password with SaaS "
+            f"({url}): {exc} — bot may fail authentication until the password "
+            "is set via the web dashboard."
+        )
 
 
 def create_app() -> Flask:
@@ -86,6 +128,13 @@ def create_app() -> Flask:
         data: dict[str, Any] = request.get_json(force=True) or {}
         try:
             config_dir, bot_id = config_writer.write_config(data)
+
+            # Register the per-user connection password with the SaaS so the relay
+            # can validate it independently of the global RELAY_CONNECTION_SECRET.
+            _register_connection_password(
+                license_key=str(data.get("license_key", "")),
+                connection_password=str(data.get("connection_password", "")),
+            )
 
             # Extract the bundled bot exe to a permanent location.
             bot_exe_path = config_writer.extract_bot_exe(config_dir)

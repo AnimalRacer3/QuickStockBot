@@ -116,9 +116,11 @@ input.err,select.err{border-color:#fc8181}
   <!-- ─── Step 2: Connection Password ─────────────────────────────────── -->
   <div class="step" id="s2">
     <div class="notice">
-      <strong>Connection password</strong> authenticates this bot to the relay.
-      Choose any strong password (≥&nbsp;8&nbsp;chars) — you will not need to type it
-      again after setup.
+      <strong>Connection password</strong> is a private secret that links
+      <em>your</em> bot to your license. Choose any strong password
+      (≥&nbsp;8&nbsp;chars) — it will be registered with your account on the
+      QuickStockBot server so only your bot can connect. You will not need to
+      type it again after setup.
     </div>
     <div class="field">
       <label>Connection Password</label>

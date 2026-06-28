@@ -15,9 +15,11 @@ import { RelayServer } from "./server.js";
 
 const VALID_LICENSE = "valid-license-abc";
 const LICENSE_B = "license-b";
+const LICENSE_PER_USER = "license-per-user";
 const ACCOUNT_A = "account-111";
 const ACCOUNT_B = "account-222";
 const CONNECTION_SECRET = "relay-shared-secret";
+const PER_USER_PASSWORD = "my-unique-bot-password-123";
 
 // ─── Stub SaaS validator (real HTTP server, started once) ─────────────────────
 
@@ -32,11 +34,13 @@ beforeAll(async () => {
     });
     req.on("end", () => {
       const { license_key } = JSON.parse(body) as { license_key: string };
-      let result: { valid: boolean; account_id?: string };
+      let result: { valid: boolean; account_id?: string; connection_password?: string | null };
       if (license_key === VALID_LICENSE) {
-        result = { valid: true, account_id: ACCOUNT_A };
+        result = { valid: true, account_id: ACCOUNT_A, connection_password: null };
       } else if (license_key === LICENSE_B) {
-        result = { valid: true, account_id: ACCOUNT_B };
+        result = { valid: true, account_id: ACCOUNT_B, connection_password: null };
+      } else if (license_key === LICENSE_PER_USER) {
+        result = { valid: true, account_id: ACCOUNT_A, connection_password: PER_USER_PASSWORD };
       } else {
         result = { valid: false };
       }
@@ -317,6 +321,48 @@ describe("Bot registration", () => {
     ws.on("error", () => {});
     const { code } = await waitClose(ws);
     expect([1006, 1001, 1005]).toContain(code);
+  });
+
+  it("authenticates with per-user connection password from license", async () => {
+    const { sock, nonce } = await connectBot({ sendRegister: false });
+    const proof = makeProof(nonce, PER_USER_PASSWORD);
+    sock.ws.send(
+      JSON.stringify({
+        type: "register",
+        id: "r-pu",
+        payload: {
+          bot_id: "bot-per-user",
+          license_key: LICENSE_PER_USER,
+          connection_password_proof: proof,
+          version: "0.1.0",
+        },
+      })
+    );
+    const registered = (await sock.next()) as { type: string };
+    expect(registered.type).toBe("registered");
+    expect(relay.routingMap.getBot("bot-per-user")).toBeDefined();
+    sock.close();
+  });
+
+  it("rejects per-user license when global secret is used instead of per-user password", async () => {
+    const { sock, nonce } = await connectBot({ sendRegister: false });
+    // Compute proof with global secret — but license has a per-user password set,
+    // so the relay must use the per-user password and reject the global-secret proof.
+    const proof = makeProof(nonce, CONNECTION_SECRET);
+    sock.ws.send(
+      JSON.stringify({
+        type: "register",
+        id: "r-pu-bad",
+        payload: {
+          bot_id: "bot-pu-bad",
+          license_key: LICENSE_PER_USER,
+          connection_password_proof: proof,
+          version: "0.1.0",
+        },
+      })
+    );
+    const { code } = await waitClose(sock.ws);
+    expect(code).toBe(4001);
   });
 });
 
