@@ -241,7 +241,11 @@ export class RelayServer {
 
     if (!licenseResult.valid || !licenseResult.account_id) {
       const reason = licenseResult.error ?? "license invalid";
-      logger.warn("Bot auth failed: invalid license, validation url: " + this.cfg.validateUrl + " Saas Secret: " + this.cfg.saasSecret, { bot_id, error: reason });
+      logger.warn("Bot auth failed: invalid license", {
+        bot_id,
+        error: reason,
+        validate_url: this.cfg.validateUrl,
+      });
 
       const closeReason =
         reason === "license not found"
