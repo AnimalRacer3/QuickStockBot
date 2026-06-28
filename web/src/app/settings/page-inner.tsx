@@ -24,7 +24,7 @@ export const DEFAULT_SETTINGS: BotSettings = {
   max_float_shares: 20_000_000,
   include_unknown_float: true,
   require_news: true,
-  active_tickers_n: 5,
+  active_tickers_n: 3,
   prior_profit_bias_weight: 0.5,
   enabled_patterns: ["bullish_engulfing", "hammer", "morning_star", "bullish_continuation"],
   pattern_candle_lookback: 5,
@@ -32,18 +32,16 @@ export const DEFAULT_SETTINGS: BotSettings = {
   macd_slow: 26,
   macd_signal: 9,
   macd_slope_lookback: 3,
-  macd_enforce_above_zero: false,
+  macd_enforce_above_zero: true,
   risk_per_trade_pct: 1.0,
-  daily_max_loss_pct: 10.0,
-  daily_profit_target_pct: 7.0,
+  daily_max_loss_pct: 3.0,
+  daily_profit_target_pct: 5.0,
   override_risk_per_trade: false,
   flatten_on_daily_loss: true,
   flatten_on_daily_profit: false,
   daily_target_mode: "giveback",
   daily_giveback_pct: 25.0,
-  exit_mode: "trail_off",
-  trail_off_trigger: "candle_pattern",
-  trail_off_fraction_per_candle: 0.25,
+  exit_mode: "dump",
   stop_loss_pct: 2.0,
   take_profit_pct: 4.0,
   trailing_stop_enabled: false,
@@ -433,47 +431,33 @@ export default function SettingsPageInner() {
           </div>
         </div>
         {settings.exit_mode === "trail_off" && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 8 }}>Trail Off Trigger</div>
-            <div style={{ display: "flex", gap: 16, marginBottom: 16 }}>
-              {(["per_candle", "candle_pattern"] as const).map((mode) => (
-                <label
-                  key={mode}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    cursor: "pointer",
-                    fontSize: 13,
-                    color: "#d1d5db",
-                  }}
-                >
-                  <input
-                    type="radio"
-                    name="trail_off_trigger"
-                    value={mode}
-                    checked={(settings.trail_off_trigger ?? "candle_pattern") === mode}
-                    onChange={() => set("trail_off_trigger", mode)}
-                  />
-                  {mode === "per_candle"
-                    ? "Per Candle (sell fraction every candle)"
-                    : "Candle Pattern (sell on pattern change)"}
-                </label>
-              ))}
-            </div>
-            <div style={gridStyle}>
-              <Field label="Fraction Per Candle">
-                <input
-                  type="number"
-                  step="0.05"
-                  min="0.05"
-                  max="1"
-                  value={settings.trail_off_fraction_per_candle ?? 0.25}
-                  onChange={(e) => set("trail_off_fraction_per_candle", parseFloat(e.target.value))}
-                  style={inputStyle}
-                />
-              </Field>
-            </div>
+          <div style={{ ...gridStyle, marginBottom: 16 }}>
+            <Field label="Trail Off Trigger (%)">
+              <input
+                type="number"
+                step="0.1"
+                value={settings.trail_off_trigger ?? ""}
+                onChange={(e) => set("trail_off_trigger", parseFloat(e.target.value))}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="Fraction Per Candle">
+              <input
+                type="number"
+                step="0.05"
+                value={settings.trail_off_fraction_per_candle ?? ""}
+                onChange={(e) => set("trail_off_fraction_per_candle", parseFloat(e.target.value))}
+                style={inputStyle}
+              />
+            </Field>
+            <Field label="Trail Off Pattern">
+              <input
+                type="text"
+                value={settings.trail_off_pattern ?? ""}
+                onChange={(e) => set("trail_off_pattern", e.target.value)}
+                style={inputStyle}
+              />
+            </Field>
           </div>
         )}
         <div style={gridStyle}>

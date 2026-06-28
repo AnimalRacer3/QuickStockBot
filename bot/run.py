@@ -3,7 +3,6 @@ QuickStockBot trading engine — standalone entry point.
 
 Reads config from ~/.quickstockbot/ (or %LOCALAPPDATA%\\QuickStockBot\\ on Windows),
 then starts the relay client and local API server concurrently.
-All persistent state is stored in PostgreSQL (DATABASE_URL).
 """
 
 from __future__ import annotations
@@ -13,13 +12,9 @@ import logging
 import logging.handlers
 import os
 import platform
+import sqlite3
 import sys
-import time
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from bot.control.connection import DbConn
 
 
 def _config_dir() -> Path:
@@ -51,12 +46,11 @@ def _setup_file_logging(config_dir: Path) -> None:
     print(f"[QuickStockBot] Logging to {log_path}", flush=True)
 
 
-# PostgreSQL schema — runs at startup with CREATE TABLE IF NOT EXISTS (idempotent).
 _SCHEMA_SQL = """
     CREATE TABLE IF NOT EXISTS settings (
         key        TEXT    PRIMARY KEY,
         value      TEXT    NOT NULL,
-        updated_at BIGINT  NOT NULL
+        updated_at INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS active_tickers (
@@ -69,10 +63,10 @@ _SCHEMA_SQL = """
         ema_short         REAL,
         ema_long          REAL,
         state             TEXT    NOT NULL DEFAULT 'watching',
-        updated_at        BIGINT  NOT NULL,
+        updated_at        INTEGER NOT NULL,
         gap_pct           REAL,
         rvol              REAL,
-        float_shares      BIGINT,
+        float_shares      INTEGER,
         unknown_float     INTEGER NOT NULL DEFAULT 0,
         scanner_tradable  INTEGER NOT NULL DEFAULT 1,
         pct_change        REAL,
@@ -95,18 +89,18 @@ _SCHEMA_SQL = """
         filled_quantity REAL,
         status          TEXT    NOT NULL,
         broker_order_id TEXT,
-        created_at      BIGINT  NOT NULL,
-        updated_at      BIGINT  NOT NULL
+        created_at      INTEGER NOT NULL,
+        updated_at      INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS order_status_events (
-        id              BIGSERIAL PRIMARY KEY,
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
         order_id        TEXT    NOT NULL REFERENCES orders(id),
         status          TEXT    NOT NULL,
         filled_price    REAL,
         filled_quantity REAL,
         message         TEXT,
-        occurred_at     BIGINT  NOT NULL
+        occurred_at     INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS trades (
@@ -122,36 +116,36 @@ _SCHEMA_SQL = """
         fees           REAL    NOT NULL DEFAULT 0,
         label          TEXT,
         status         TEXT    NOT NULL,
-        opened_at      BIGINT  NOT NULL,
-        closed_at      BIGINT
+        opened_at      INTEGER NOT NULL,
+        closed_at      INTEGER
     );
 
     CREATE TABLE IF NOT EXISTS log_events (
-        id          BIGSERIAL PRIMARY KEY,
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
         level       TEXT    NOT NULL,
         message     TEXT    NOT NULL,
         context     TEXT,
-        occurred_at BIGINT  NOT NULL
+        occurred_at INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS lists (
-        id        BIGSERIAL PRIMARY KEY,
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
         symbol    TEXT    NOT NULL,
         list_type TEXT    NOT NULL,
         reason    TEXT,
         active    INTEGER NOT NULL DEFAULT 1,
-        added_at  BIGINT  NOT NULL,
+        added_at  INTEGER NOT NULL,
         UNIQUE(symbol, list_type)
     );
 
     CREATE TABLE IF NOT EXISTS ml_samples (
-        id            BIGSERIAL PRIMARY KEY,
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
         symbol        TEXT    NOT NULL,
         features      TEXT    NOT NULL,
         label         INTEGER,
         model_version TEXT,
         trade_id      TEXT    REFERENCES trades(id),
-        sampled_at    BIGINT  NOT NULL
+        sampled_at    INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS ticker_profit_stats (
@@ -159,7 +153,7 @@ _SCHEMA_SQL = """
         cumulative_pnl REAL    NOT NULL DEFAULT 0.0,
         trade_count    INTEGER NOT NULL DEFAULT 0,
         win_count      INTEGER NOT NULL DEFAULT 0,
-        updated_at     BIGINT  NOT NULL
+        updated_at     INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS daily_efficiency (
@@ -167,12 +161,12 @@ _SCHEMA_SQL = """
         trades_to_goal INTEGER NOT NULL,
         goal_reached   INTEGER NOT NULL DEFAULT 0,
         daily_pnl_pct  REAL    NOT NULL DEFAULT 0.0,
-        recorded_at    BIGINT  NOT NULL
+        recorded_at    INTEGER NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS run_days (
         date      TEXT    PRIMARY KEY,
-        marked_at BIGINT  NOT NULL
+        marked_at INTEGER NOT NULL
     );
 
     CREATE INDEX IF NOT EXISTS idx_order_status_events_order_id ON order_status_events(order_id);
@@ -181,16 +175,10 @@ _SCHEMA_SQL = """
     CREATE INDEX IF NOT EXISTS idx_trades_exit_order_id          ON trades(exit_order_id);
     CREATE INDEX IF NOT EXISTS idx_log_events_occurred           ON log_events(occurred_at);
     CREATE INDEX IF NOT EXISTS idx_lists_symbol                  ON lists(symbol);
-    CREATE INDEX IF NOT EXISTS idx_ml_samples_trade_id           ON ml_samples(trade_id)
+    CREATE INDEX IF NOT EXISTS idx_ml_samples_trade_id           ON ml_samples(trade_id);
 """
 
-_REQUIRED_ENV_VARS = (
-    "RELAY_URL",
-    "BOT_ID",
-    "LICENSE_KEY",
-    "CONNECTION_PASSWORD",
-    "DATABASE_URL",
-)
+_REQUIRED_ENV_VARS = ("RELAY_URL", "BOT_ID", "LICENSE_KEY", "CONNECTION_PASSWORD")
 
 # Maps Python import name → pip install name for every third-party dependency.
 _REQUIRED_PACKAGES: dict[str, str] = {
@@ -203,7 +191,6 @@ _REQUIRED_PACKAGES: dict[str, str] = {
     "tenacity": "tenacity",
     "sklearn": "scikit-learn",
     "anyio": "anyio",
-    "psycopg2": "psycopg2-binary",
 }
 
 
@@ -381,21 +368,16 @@ def _diagnose_error(exc: BaseException, config_dir: Path) -> str:
             "  3. Restart your computer if the port remains occupied.",
         ]
 
-    # --- Database / PostgreSQL errors ---
-    elif (
-        "database" in msg
-        or "postgresql" in msg
-        or "psycopg" in msg
-        or "connection refused" in msg
-        or "database_url" in msg.lower()
-    ):
+    # --- SQLite / database errors ---
+    elif "sqlite" in name.lower() or "database" in msg or "db" in name.lower():
+        db_path = config_dir / "quickstock.db"
         lines += [
-            "Database error — could not connect to PostgreSQL.",
+            "Database error — the local database could not be opened or initialised.",
             "",
             "Possible fixes:",
-            f"  1. Check that DATABASE_URL is set correctly in {config_dir / '.env'}",
-            "  2. Verify the PostgreSQL server is running and accessible.",
-            "  3. Re-run the installer (quickstockbot-installer) to reset your database URL.",
+            f"  1. Check that the folder exists and is writable: {config_dir}",
+            f"  2. If the database file is corrupted, delete it and restart: {db_path}",
+            "     (Trade history will be lost, but the bot will recreate the file.)",
         ]
 
     # --- Import / packaging errors (frozen exe) ---
@@ -429,215 +411,10 @@ def _diagnose_error(exc: BaseException, config_dir: Path) -> str:
     return "\n".join(lines)
 
 
-def _init_db(db: DbConn) -> None:
+def _init_db(db: sqlite3.Connection) -> None:
     """Create all tables and indexes if they don't exist yet (idempotent)."""
     db.executescript(_SCHEMA_SQL)
-
-
-def _load_config_json_into_db(config_dir: Path, db: DbConn) -> None:
-    """
-    One-time migration: read wizard config.json and insert any settings not
-    already present in the DB.  Existing DB rows (set via the web dashboard)
-    are never overwritten.
-    """
-    import json as _json
-
-    config_path = config_dir / "config.json"
-    if not config_path.exists():
-        return
-
-    logger = logging.getLogger(__name__)
-    try:
-        cfg = _json.loads(config_path.read_text(encoding="utf-8"))
-    except Exception as exc:
-        logger.warning("Could not read config.json: %s", exc)
-        return
-
-    now = int(time.time())
-    inserted = 0
-    for section in ("scanner", "patterns", "risk"):
-        for key, val in cfg.get(section, {}).items():
-            if isinstance(val, list):
-                serialized = _json.dumps(val)
-            elif isinstance(val, bool):
-                serialized = "true" if val else "false"
-            else:
-                serialized = str(val)
-            db.execute(
-                "INSERT INTO settings (key, value, updated_at) VALUES (%s, %s, %s)"
-                " ON CONFLICT (key) DO NOTHING",
-                (key, serialized, now),
-            )
-            inserted += 1
-
-    if inserted:
-        db.commit()
-        logger.info("Migrated %d settings from config.json into DB", inserted)
-
-
-async def _scan_loop(db: DbConn) -> None:
-    """
-    Background loop: polls for a scan request flag set by the trigger_scan RPC
-    and runs the momentum scanner when triggered.
-    """
-    import json as _json
-    import time as _time
-
-    logger = logging.getLogger(__name__)
-
-    while True:
-        await asyncio.sleep(5)
-
-        row = db.execute(
-            "SELECT value FROM settings WHERE key = '_scan_requested'"
-        ).fetchone()
-        if not row or row["value"] != "1":
-            continue
-
-        # Clear flag before running so a second trigger during the scan is honoured
-        db.execute(
-            "INSERT INTO settings (key, value, updated_at) VALUES (%s, %s, %s)"
-            " ON CONFLICT (key) DO UPDATE SET"
-            " value = EXCLUDED.value, updated_at = EXCLUDED.updated_at",
-            ("_scan_requested", "0", int(_time.time())),
-        )
-        db.commit()
-
-        logger.info("Scan triggered — starting scanner")
-        try:
-            from bot.alpaca.client import AlpacaClient
-            from bot.alpaca.config import AlpacaConfig
-            from bot.control import db as dbmod
-            from bot.scanner.config import ScannerConfig
-            from bot.scanner.scanner import run_scan
-            from bot.ta.config import TAConfig
-
-            alpaca_cfg = AlpacaConfig.from_env()
-            client = AlpacaClient(alpaca_cfg)
-            raw = dbmod.get_all_settings_raw(db)
-
-            _def_patterns = [
-                "bullish_engulfing",
-                "hammer",
-                "morning_star",
-                "bullish_continuation",
-            ]
-            scanner_cfg = ScannerConfig(
-                pre_open_lead_hours=dbmod.coerce_float(
-                    raw.get("pre_open_lead_hours"), 1.0
-                ),
-                scan_duration_hours=dbmod.coerce_float(
-                    raw.get("scan_duration_hours"), 3.0
-                ),
-                relative_volume_min=dbmod.coerce_float(
-                    raw.get("relative_volume_min"), 2.0
-                ),
-                gap_up_min_pct=dbmod.coerce_float(raw.get("gap_up_min_pct"), 5.0),
-                max_float_shares=dbmod.coerce_int(
-                    raw.get("max_float_shares"), 20_000_000
-                ),
-                include_unknown_float=dbmod.coerce_bool(
-                    raw.get("include_unknown_float"), True
-                ),
-                active_tickers_n=dbmod.coerce_int(raw.get("active_tickers_n"), 5),
-                require_news=dbmod.coerce_bool(raw.get("require_news"), True),
-            )
-            ta_cfg = TAConfig(
-                macd_fast=dbmod.coerce_int(raw.get("macd_fast"), 12),
-                macd_slow=dbmod.coerce_int(raw.get("macd_slow"), 26),
-                macd_signal=dbmod.coerce_int(raw.get("macd_signal"), 9),
-                macd_enforce_above_zero=dbmod.coerce_bool(
-                    raw.get("macd_enforce_above_zero"), False
-                ),
-                pattern_candle_lookback=dbmod.coerce_int(
-                    raw.get("pattern_candle_lookback"), 5
-                ),
-                enabled_patterns=dbmod.coerce_list(raw.get("enabled_patterns"))
-                or _def_patterns,
-            )
-            watchlist = dbmod.coerce_list(raw.get("watchlist"))
-
-            loop = asyncio.get_event_loop()
-
-            def _do_scan():
-                assets = client.list_assets()
-                symbols = list(
-                    {a.symbol for a in assets if a.tradable} | set(watchlist)
-                )
-                return run_scan(
-                    symbols=symbols,
-                    client=client,
-                    config=scanner_cfg,
-                    ta_config=ta_cfg,
-                    news_by_symbol={},
-                )
-
-            result = await loop.run_in_executor(None, _do_scan)
-
-            if result is None:
-                logger.info("Scan: outside scan window, no results written")
-                continue
-
-            scan_ts = int(_time.time())
-            db.execute("DELETE FROM active_tickers")
-            for ticker in result.candidates:
-                db.execute(
-                    "INSERT INTO active_tickers"
-                    " (symbol, price, volume, macd, signal, state, updated_at,"
-                    "  gap_pct, rvol, float_shares, unknown_float, scanner_tradable,"
-                    "  pct_change, macd_state_json, pattern_tags_json, role, score)"
-                    " VALUES (%s, %s, 0, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
-                    " ON CONFLICT (symbol) DO UPDATE SET"
-                    "  price = EXCLUDED.price,"
-                    "  volume = EXCLUDED.volume,"
-                    "  macd = EXCLUDED.macd,"
-                    "  signal = EXCLUDED.signal,"
-                    "  state = EXCLUDED.state,"
-                    "  updated_at = EXCLUDED.updated_at,"
-                    "  gap_pct = EXCLUDED.gap_pct,"
-                    "  rvol = EXCLUDED.rvol,"
-                    "  float_shares = EXCLUDED.float_shares,"
-                    "  unknown_float = EXCLUDED.unknown_float,"
-                    "  scanner_tradable = EXCLUDED.scanner_tradable,"
-                    "  pct_change = EXCLUDED.pct_change,"
-                    "  macd_state_json = EXCLUDED.macd_state_json,"
-                    "  pattern_tags_json = EXCLUDED.pattern_tags_json,"
-                    "  role = EXCLUDED.role,"
-                    "  score = EXCLUDED.score",
-                    (
-                        ticker.symbol,
-                        ticker.price,
-                        ticker.macd_state.value,
-                        ticker.macd_state.value,
-                        "active" if ticker.symbol in result.active_set else "watching",
-                        scan_ts,
-                        ticker.gap_pct,
-                        ticker.rvol,
-                        ticker.float_shares,
-                        1 if ticker.unknown_float else 0,
-                        1 if ticker.tradable else 0,
-                        ticker.pct_change,
-                        _json.dumps(
-                            {
-                                "value": ticker.macd_state.value,
-                                "slope": ticker.macd_state.slope,
-                                "favorability": ticker.macd_state.favorability,
-                                "eligible": ticker.macd_state.eligible,
-                            }
-                        ),
-                        _json.dumps(ticker.pattern_tags),
-                        ticker.role,
-                        ticker.score,
-                    ),
-                )
-            db.commit()
-            logger.info(
-                "Scan complete: %d candidates, active=[%s]",
-                len(result.candidates),
-                ", ".join(result.active_set),
-            )
-        except Exception:
-            logger.exception("Scan loop error")
+    db.commit()
 
 
 def main() -> None:
@@ -720,14 +497,15 @@ async def _run(config_dir: Path) -> None:
     import uvicorn
 
     import bot.control.local_api as _local_api_mod
-    from bot.control.connection import get_db_connection
     from bot.control.relay_client import RelayClient
 
-    db = get_db_connection()
+    db_path = str(config_dir / "quickstock.db")
+    db = sqlite3.connect(db_path, check_same_thread=False)
+    db.row_factory = sqlite3.Row
+    db.execute("PRAGMA foreign_keys = ON")
     _init_db(db)
 
-    # Migrate wizard config.json into DB (no-op if keys already exist)
-    _load_config_json_into_db(config_dir, db)
+    _local_api_mod._db_path = db_path
 
     relay = RelayClient(
         url=os.environ["RELAY_URL"],
@@ -742,7 +520,7 @@ async def _run(config_dir: Path) -> None:
     )
     server = uvicorn.Server(uv_config)
 
-    await asyncio.gather(relay.run(), server.serve(), _scan_loop(db))
+    await asyncio.gather(relay.run(), server.serve())
 
 
 if __name__ == "__main__":

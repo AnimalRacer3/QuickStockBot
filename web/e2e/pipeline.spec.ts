@@ -148,7 +148,7 @@ test.describe("Pipeline — full bot → relay → dashboard flow", () => {
     await expect(page.getByText("Exit Mode")).toBeVisible({ timeout: 10_000 });
 
     await page.locator("label", { hasText: /^Trail Off$/ }).click();
-    await expect(page.getByText("Trail Off Trigger")).toBeVisible();
+    await expect(page.getByText("Trail Off Trigger (%)")).toBeVisible();
 
     await page.getByRole("button", { name: "Save Settings" }).click();
     await expect(page.getByText("Settings saved.")).toBeVisible({ timeout: 5000 });

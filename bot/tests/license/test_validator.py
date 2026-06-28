@@ -16,7 +16,6 @@ from typing import Any
 import httpx
 import pytest
 
-from bot.control.connection import DbConn
 from bot.control.handlers import handle_get_state, handle_update_settings
 from bot.license.validator import (
     GRACE_PERIOD_SECONDS,
@@ -35,12 +34,12 @@ CREATE TABLE settings (
 
 
 @pytest.fixture()
-def db() -> DbConn:
+def db() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(_SCHEMA_SQL)
     conn.commit()
-    return DbConn(conn, pg=False)
+    return conn
 
 
 # ─── Fake HTTP helpers ────────────────────────────────────────────────────────
@@ -75,20 +74,20 @@ class FakeHttpClient:
         return _FakeResponse(self._response)
 
 
-def _seed_last_valid(db: DbConn, seconds_ago: float) -> None:
+def _seed_last_valid(db: sqlite3.Connection, seconds_ago: float) -> None:
     """Store a last-valid timestamp *seconds_ago* seconds in the past."""
     ts = time.time() - seconds_ago
     now = int(time.time())
     db.execute(
-        "INSERT INTO settings (key, value, updated_at) VALUES (%s, %s, %s)"
-        " ON CONFLICT (key) DO UPDATE SET"
-        " value = EXCLUDED.value, updated_at = EXCLUDED.updated_at",
+        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
         ("_license_last_valid_ts", str(ts), now),
     )
     db.commit()
 
 
-def _make_validator(db: DbConn, response: dict | Exception) -> LicenseValidator:
+def _make_validator(
+    db: sqlite3.Connection, response: dict | Exception
+) -> LicenseValidator:
     return LicenseValidator(
         validate_url="https://api.example.com/validate",
         license_key="QSB-TEST-0000-0000-0000",
@@ -101,13 +100,13 @@ def _make_validator(db: DbConn, response: dict | Exception) -> LicenseValidator:
 
 
 class TestActiveStatus:
-    def test_active_allows_trading(self, db: DbConn) -> None:
+    def test_active_allows_trading(self, db: sqlite3.Connection) -> None:
         v = _make_validator(db, {"status": "active"})
         status = v.check_once()
         assert status.state == "active"
         assert status.trading_allowed is True
 
-    def test_active_persists_last_valid_ts(self, db: DbConn) -> None:
+    def test_active_persists_last_valid_ts(self, db: sqlite3.Connection) -> None:
         v = _make_validator(db, {"status": "active"})
         before = time.time()
         v.check_once()
@@ -115,9 +114,9 @@ class TestActiveStatus:
             "SELECT value FROM settings WHERE key = '_license_last_valid_ts'"
         ).fetchone()
         assert row is not None
-        assert float(row["value"]) >= before
+        assert float(row[0]) >= before
 
-    def test_active_updates_cached_state(self, db: DbConn) -> None:
+    def test_active_updates_cached_state(self, db: sqlite3.Connection) -> None:
         v = _make_validator(db, {"status": "active"})
         v.check_once()
         assert v.current_state().state == "active"
@@ -127,7 +126,7 @@ class TestActiveStatus:
 
 
 class TestRevokedStatus:
-    def test_revoked_within_grace_allows_trading(self, db: DbConn) -> None:
+    def test_revoked_within_grace_allows_trading(self, db: sqlite3.Connection) -> None:
         _seed_last_valid(
             db, seconds_ago=1 * 24 * 3600
         )  # 1 day ago — within 30-day grace
@@ -137,7 +136,7 @@ class TestRevokedStatus:
         assert status.trading_allowed is True
         assert "grace" in status.reason
 
-    def test_revoked_past_grace_stops_trading(self, db: DbConn) -> None:
+    def test_revoked_past_grace_stops_trading(self, db: sqlite3.Connection) -> None:
         _seed_last_valid(db, seconds_ago=31 * 24 * 3600)  # 31 days ago — past grace
         v = _make_validator(db, {"status": "revoked"})
         status = v.check_once()
@@ -145,14 +144,18 @@ class TestRevokedStatus:
         assert status.trading_allowed is False
         assert "expired" in status.reason
 
-    def test_revoked_without_last_valid_stops_trading(self, db: DbConn) -> None:
+    def test_revoked_without_last_valid_stops_trading(
+        self, db: sqlite3.Connection
+    ) -> None:
         # Never had a successful validation
         v = _make_validator(db, {"status": "revoked"})
         status = v.check_once()
         assert status.state == "revoked"
         assert status.trading_allowed is False
 
-    def test_revoked_exactly_at_grace_boundary_stops_trading(self, db: DbConn) -> None:
+    def test_revoked_exactly_at_grace_boundary_stops_trading(
+        self, db: sqlite3.Connection
+    ) -> None:
         # last_valid_ts is exactly GRACE_PERIOD_SECONDS ago → outside window
         _seed_last_valid(db, seconds_ago=GRACE_PERIOD_SECONDS)
         v = _make_validator(db, {"status": "revoked"})
@@ -161,7 +164,7 @@ class TestRevokedStatus:
 
 
 class TestOfflineStatus:
-    def test_offline_within_grace_allows_trading(self, db: DbConn) -> None:
+    def test_offline_within_grace_allows_trading(self, db: sqlite3.Connection) -> None:
         _seed_last_valid(db, seconds_ago=1 * 24 * 3600)  # 1 day ago
         v = _make_validator(db, httpx.ConnectError("network unreachable"))
         status = v.check_once()
@@ -169,31 +172,33 @@ class TestOfflineStatus:
         assert status.trading_allowed is True
         assert "grace" in status.reason
 
-    def test_offline_past_grace_stops_trading(self, db: DbConn) -> None:
+    def test_offline_past_grace_stops_trading(self, db: sqlite3.Connection) -> None:
         _seed_last_valid(db, seconds_ago=31 * 24 * 3600)  # 31 days ago
         v = _make_validator(db, httpx.ConnectError("network unreachable"))
         status = v.check_once()
         assert status.state == "offline"
         assert status.trading_allowed is False
 
-    def test_offline_no_prior_validation_stops_trading(self, db: DbConn) -> None:
+    def test_offline_no_prior_validation_stops_trading(
+        self, db: sqlite3.Connection
+    ) -> None:
         v = _make_validator(db, httpx.ConnectError("network unreachable"))
         status = v.check_once()
         assert status.state == "offline"
         assert status.trading_allowed is False
 
-    def test_offline_state_is_persisted_to_db(self, db: DbConn) -> None:
+    def test_offline_state_is_persisted_to_db(self, db: sqlite3.Connection) -> None:
         _seed_last_valid(db, seconds_ago=1 * 24 * 3600)
         v = _make_validator(db, httpx.ConnectError("network unreachable"))
         v.check_once()
         row = db.execute(
             "SELECT value FROM settings WHERE key = '_license_cached_status'"
         ).fetchone()
-        assert row and row["value"] == "offline"
+        assert row and row[0] == "offline"
 
 
 class TestCachedStateRestore:
-    def test_loads_cached_state_on_init(self, db: DbConn) -> None:
+    def test_loads_cached_state_on_init(self, db: sqlite3.Connection) -> None:
         # First validator writes active state
         v1 = _make_validator(db, {"status": "active"})
         v1.check_once()
@@ -208,7 +213,7 @@ class TestCachedStateRestore:
         assert v2.current_state().state == "active"
         assert v2.current_state().trading_allowed is True
 
-    def test_unknown_state_before_any_check(self, db: DbConn) -> None:
+    def test_unknown_state_before_any_check(self, db: sqlite3.Connection) -> None:
         v = LicenseValidator(
             validate_url="https://api.example.com/validate",
             license_key="key",
@@ -274,34 +279,38 @@ _HANDLER_DEFAULTS = [
 
 
 @pytest.fixture()
-def handler_db() -> DbConn:
+def handler_db() -> sqlite3.Connection:
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(_HANDLER_SCHEMA)
     now = int(time.time())
     conn.executemany(
-        "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO NOTHING",
+        "INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
         [(k, v, now) for k, v in _HANDLER_DEFAULTS],
     )
     conn.commit()
-    return DbConn(conn, pg=False)
+    return conn
 
 
 class TestLiveModeConfirmation:
     def test_enabling_live_without_confirmation_raises(
-        self, handler_db: DbConn
+        self, handler_db: sqlite3.Connection
     ) -> None:
         with pytest.raises(ValueError, match="live_mode_confirmation_required"):
             handle_update_settings(handler_db, {"patch": {"paper_trading": False}})
 
-    def test_enabling_live_with_confirmation_succeeds(self, handler_db: DbConn) -> None:
+    def test_enabling_live_with_confirmation_succeeds(
+        self, handler_db: sqlite3.Connection
+    ) -> None:
         result = handle_update_settings(
             handler_db,
             {"patch": {"paper_trading": False, "live_mode_confirmed": True}},
         )
         assert result["paper_trading"] is False
 
-    def test_confirmation_flag_not_persisted(self, handler_db: DbConn) -> None:
+    def test_confirmation_flag_not_persisted(
+        self, handler_db: sqlite3.Connection
+    ) -> None:
         handle_update_settings(
             handler_db,
             {"patch": {"paper_trading": False, "live_mode_confirmed": True}},
@@ -312,13 +321,13 @@ class TestLiveModeConfirmation:
         assert row is None  # must not be written to DB
 
     def test_staying_in_paper_mode_does_not_require_confirmation(
-        self, handler_db: DbConn
+        self, handler_db: sqlite3.Connection
     ) -> None:
         result = handle_update_settings(handler_db, {"patch": {"paper_trading": True}})
         assert result["paper_trading"] is True
 
     def test_other_settings_update_without_confirmation(
-        self, handler_db: DbConn
+        self, handler_db: sqlite3.Connection
     ) -> None:
         result = handle_update_settings(handler_db, {"patch": {"max_positions": 3}})
         assert result["max_positions"] == 3
@@ -328,12 +337,16 @@ class TestLiveModeConfirmation:
 
 
 class TestNoticesInState:
-    def test_account_equity_notice_always_present(self, handler_db: DbConn) -> None:
+    def test_account_equity_notice_always_present(
+        self, handler_db: sqlite3.Connection
+    ) -> None:
         result = handle_get_state(handler_db, {})
         types = {n["type"] for n in result["notices"]}
         assert "account_equity" in types
 
-    def test_pdt_framework_notice_has_expected_fields(self, handler_db: DbConn) -> None:
+    def test_pdt_framework_notice_has_expected_fields(
+        self, handler_db: sqlite3.Connection
+    ) -> None:
         result = handle_get_state(handler_db, {})
         notice = next(n for n in result["notices"] if n["type"] == "account_equity")
         fw = notice["pdt_framework"]
@@ -343,7 +356,9 @@ class TestNoticesInState:
         assert fw["broker_may_still_use_old_rules"] is True
         assert "2027-10-20" in fw["broker_migration_deadline"]
 
-    def test_live_mode_notice_appears_when_live(self, handler_db: DbConn) -> None:
+    def test_live_mode_notice_appears_when_live(
+        self, handler_db: sqlite3.Connection
+    ) -> None:
         handle_update_settings(
             handler_db,
             {"patch": {"paper_trading": False, "live_mode_confirmed": True}},
@@ -352,13 +367,15 @@ class TestNoticesInState:
         types = {n["type"] for n in result["notices"]}
         assert "live_mode" in types
 
-    def test_no_live_mode_notice_in_paper_mode(self, handler_db: DbConn) -> None:
+    def test_no_live_mode_notice_in_paper_mode(
+        self, handler_db: sqlite3.Connection
+    ) -> None:
         result = handle_get_state(handler_db, {})
         types = {n["type"] for n in result["notices"]}
         assert "live_mode" not in types
 
     def test_pdt_restricted_notice_appears_when_flag_active(
-        self, handler_db: DbConn
+        self, handler_db: sqlite3.Connection
     ) -> None:
         account_snapshot = {
             "equity": 1500.0,
@@ -372,7 +389,7 @@ class TestNoticesInState:
         }
         now = int(time.time())
         handler_db.execute(
-            "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
             ("_account_snapshot", json.dumps(account_snapshot), now),
         )
         handler_db.commit()
@@ -382,7 +399,7 @@ class TestNoticesInState:
         assert "account_equity" in types
 
     def test_no_pdt_restricted_notice_when_not_flagged(
-        self, handler_db: DbConn
+        self, handler_db: sqlite3.Connection
     ) -> None:
         account_snapshot = {
             "equity": 50000.0,
@@ -396,7 +413,7 @@ class TestNoticesInState:
         }
         now = int(time.time())
         handler_db.execute(
-            "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
             ("_account_snapshot", json.dumps(account_snapshot), now),
         )
         handler_db.commit()
@@ -404,7 +421,9 @@ class TestNoticesInState:
         types = {n["type"] for n in result["notices"]}
         assert "pdt_restricted" not in types
 
-    def test_license_notice_appears_when_revoked(self, handler_db: DbConn) -> None:
+    def test_license_notice_appears_when_revoked(
+        self, handler_db: sqlite3.Connection
+    ) -> None:
         now = int(time.time())
         for key, value in [
             ("_license_cached_status", "revoked"),
@@ -412,7 +431,7 @@ class TestNoticesInState:
             ("_license_reason", "license revoked — grace period active"),
         ]:
             handler_db.execute(
-                "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+                "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
                 (key, value, now),
             )
         handler_db.commit()
@@ -425,7 +444,7 @@ class TestNoticesInState:
         assert lic_notice["severity"] == "warning"
 
     def test_license_error_notice_when_trading_blocked(
-        self, handler_db: DbConn
+        self, handler_db: sqlite3.Connection
     ) -> None:
         now = int(time.time())
         for key, value in [
@@ -437,7 +456,7 @@ class TestNoticesInState:
             ),
         ]:
             handler_db.execute(
-                "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+                "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
                 (key, value, now),
             )
         handler_db.commit()
@@ -449,7 +468,9 @@ class TestNoticesInState:
         assert lic_notice["trading_allowed"] is False
         assert lic_notice["severity"] == "error"
 
-    def test_no_license_notice_when_active(self, handler_db: DbConn) -> None:
+    def test_no_license_notice_when_active(
+        self, handler_db: sqlite3.Connection
+    ) -> None:
         now = int(time.time())
         for key, value in [
             ("_license_cached_status", "active"),
@@ -457,7 +478,7 @@ class TestNoticesInState:
             ("_license_reason", "license valid and active"),
         ]:
             handler_db.execute(
-                "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
+                "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
                 (key, value, now),
             )
         handler_db.commit()

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useRelay } from "@/lib/relay-context";
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -13,20 +12,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 export default function LivePage() {
-  const { logs, connectionState, client } = useRelay();
-  const [scanStatus, setScanStatus] = useState("");
-
-  async function handleTriggerScan() {
-    if (!client) return;
-    setScanStatus("Queuing scan…");
-    try {
-      await client.triggerScan();
-      setScanStatus("Scan queued — results appear in the Tickers page within seconds.");
-      setTimeout(() => setScanStatus(""), 6000);
-    } catch (err) {
-      setScanStatus(`Error: ${err instanceof Error ? err.message : "Failed"}`);
-    }
-  }
+  const { logs, connectionState } = useRelay();
 
   if (connectionState !== "connected") {
     return (
@@ -42,34 +28,7 @@ export default function LivePage() {
 
   return (
     <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Live Actions</h1>
-        <button
-          onClick={handleTriggerScan}
-          style={{
-            padding: "8px 18px",
-            borderRadius: 8,
-            border: "none",
-            backgroundColor: "#10b981",
-            color: "#fff",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          Trigger Scan
-        </button>
-        {scanStatus && (
-          <span
-            style={{
-              fontSize: 13,
-              color: scanStatus.startsWith("Error") ? "#ef4444" : "#34d399",
-            }}
-          >
-            {scanStatus}
-          </span>
-        )}
-      </div>
+      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 16 }}>Live Actions</h1>
       <div
         role="log"
         aria-live="polite"
