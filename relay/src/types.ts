@@ -72,6 +72,8 @@ export interface BotRecord {
   ws: WebSocket;
   bot_id: string;
   account_id: string;
+  /** Raw connection password stored so web clients can auth against it */
+  connection_password?: string;
   version: string;
   registered_at: number;
   last_ping_at: number;
@@ -82,6 +84,8 @@ export interface BotRecord {
 export interface WebClientRecord {
   ws: WebSocket;
   account_id: string;
+  /** Bot this web client authenticated against; used as fallback bot_id in RPCs */
+  default_bot_id?: string;
   connected_at: number;
   last_ping_at: number;
 }
@@ -97,7 +101,8 @@ export interface PendingRpc {
 // ─── Web ↔ Relay wire types ──────────────────────────────────────────────────
 
 export interface WebRpcRequestPayload {
-  bot_id: string;
+  /** Optional when the web client authenticated via /ws/<bot_id> — relay uses the auth bot as default */
+  bot_id?: string;
   method: RpcMethodName;
   params?: Record<string, unknown>;
 }
