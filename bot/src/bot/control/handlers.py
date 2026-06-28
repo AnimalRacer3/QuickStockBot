@@ -9,13 +9,16 @@ testable without any WebSocket machinery.
 from __future__ import annotations
 
 import json
+import logging
 import math
-import sqlite3
 import time
 from collections.abc import Callable
 from typing import Any
 
+logger = logging.getLogger(__name__)
+
 from bot.control import db as dbmod
+from bot.control.connection import DbConn
 
 # ─── License / notice constants ───────────────────────────────────────────────
 
@@ -228,15 +231,15 @@ def _build_settings_response(raw: dict[str, str | None]) -> dict[str, Any]:
 # ─── Handlers ─────────────────────────────────────────────────────────────────
 
 
-def _build_notices(db: sqlite3.Connection, account: dict | None) -> list[dict]:
+def _build_notices(db: DbConn, account: dict | None) -> list[dict]:
     """Compile runtime notices surfaced to the dashboard."""
     notices: list[dict] = []
 
     # ── License notice ────────────────────────────────────────────────────
     lic_rows = {
-        r[0]: r[1]
+        r["key"]: r["value"]
         for r in db.execute(
-            "SELECT key, value FROM settings WHERE key IN (?, ?, ?)",
+            "SELECT key, value FROM settings WHERE key IN (%s, %s, %s)",
             (_LICENSE_STATUS_KEY, _LICENSE_ALLOWED_KEY, _LICENSE_REASON_KEY),
         ).fetchall()
     }
@@ -259,7 +262,7 @@ def _build_notices(db: sqlite3.Connection, account: dict | None) -> list[dict]:
     paper_row = db.execute(
         "SELECT value FROM settings WHERE key = 'paper_trading'"
     ).fetchone()
-    paper_val = (paper_row[0] if paper_row else "true") or "true"
+    paper_val = (paper_row["value"] if paper_row else "true") or "true"
     is_live = paper_val.lower() not in ("true", "1")
 
     if is_live:
@@ -307,7 +310,7 @@ def _build_notices(db: sqlite3.Connection, account: dict | None) -> list[dict]:
     return notices
 
 
-def handle_get_state(db: sqlite3.Connection, params: dict) -> dict:
+def handle_get_state(db: DbConn, params: dict) -> dict:
     tickers = dbmod.get_all_tickers(db)
 
     # Account snapshot cached in settings as JSON
@@ -315,9 +318,9 @@ def handle_get_state(db: sqlite3.Connection, params: dict) -> dict:
         "SELECT value FROM settings WHERE key = '_account_snapshot'"
     ).fetchone()
     account = None
-    if raw_acct and raw_acct[0]:
+    if raw_acct and raw_acct["value"]:
         try:
-            account = json.loads(raw_acct[0])
+            account = json.loads(raw_acct["value"])
         except Exception:
             pass
 
@@ -325,12 +328,12 @@ def handle_get_state(db: sqlite3.Connection, params: dict) -> dict:
     return {"tickers": tickers, "account": account, "notices": notices}
 
 
-def handle_get_active_tickers(db: sqlite3.Connection, params: dict) -> dict:
+def handle_get_active_tickers(db: DbConn, params: dict) -> dict:
     rows = db.execute("SELECT symbol FROM active_tickers ORDER BY symbol").fetchall()
     return {"symbols": [r[0] for r in rows]}
 
 
-def handle_get_ticker_detail(db: sqlite3.Connection, params: dict) -> dict:
+def handle_get_ticker_detail(db: DbConn, params: dict) -> dict:
     symbol = params.get("symbol", "")
     if not symbol:
         raise ValueError("symbol parameter is required")
@@ -340,12 +343,12 @@ def handle_get_ticker_detail(db: sqlite3.Connection, params: dict) -> dict:
     return ticker
 
 
-def handle_get_settings(db: sqlite3.Connection, params: dict) -> dict:
+def handle_get_settings(db: DbConn, params: dict) -> dict:
     raw = dbmod.get_all_settings_raw(db)
     return _build_settings_response(raw)
 
 
-def handle_update_settings(db: sqlite3.Connection, params: dict) -> dict:
+def handle_update_settings(db: DbConn, params: dict) -> dict:
     patch: dict = dict(params.get("patch") or {})  # copy; we may pop keys
     if not patch:
         return handle_get_settings(db, {})
@@ -420,7 +423,9 @@ def handle_update_settings(db: sqlite3.Connection, params: dict) -> dict:
         else:
             serialized = str(val) if val is not None else ""
         db.execute(
-            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
+            "INSERT INTO settings (key, value, updated_at) VALUES (%s, %s, %s)"
+            " ON CONFLICT (key) DO UPDATE SET"
+            " value = EXCLUDED.value, updated_at = EXCLUDED.updated_at",
             (key, serialized, now),
         )
 
@@ -428,14 +433,14 @@ def handle_update_settings(db: sqlite3.Connection, params: dict) -> dict:
     return handle_get_settings(db, {})
 
 
-def handle_get_lists(db: sqlite3.Connection, params: dict) -> dict:
+def handle_get_lists(db: DbConn, params: dict) -> dict:
     return {
         "watchlist": dbmod.get_list_symbols(db, "watchlist"),
         "blacklist": dbmod.get_list_symbols(db, "blacklist"),
     }
 
 
-def handle_update_lists(db: sqlite3.Connection, params: dict) -> dict:
+def handle_update_lists(db: DbConn, params: dict) -> dict:
     if "watchlist" in params:
         dbmod.replace_list(db, "watchlist", params["watchlist"])
     if "blacklist" in params:
@@ -443,14 +448,14 @@ def handle_update_lists(db: sqlite3.Connection, params: dict) -> dict:
     return handle_get_lists(db, {})
 
 
-def handle_get_trade_history(db: sqlite3.Connection, params: dict) -> dict:
+def handle_get_trade_history(db: DbConn, params: dict) -> dict:
     limit = min(int(params.get("limit", 100)), 500)
     offset = int(params.get("offset", 0))
     trades, total = dbmod.get_trade_history(db, limit, offset)
     return {"trades": trades, "total": total}
 
 
-def handle_get_order_detail(db: sqlite3.Connection, params: dict) -> dict:
+def handle_get_order_detail(db: DbConn, params: dict) -> dict:
     order_id = params.get("order_id", "")
     if not order_id:
         raise ValueError("order_id parameter is required")
@@ -475,7 +480,7 @@ def handle_subscribe_logs(
     return {"subscribed": True}
 
 
-def handle_get_daily_pl(db: sqlite3.Connection, params: dict) -> dict:
+def handle_get_daily_pl(db: DbConn, params: dict) -> dict:
     start = params.get("start")
     end = params.get("end")
     if not start or not end:
@@ -483,11 +488,13 @@ def handle_get_daily_pl(db: sqlite3.Connection, params: dict) -> dict:
     return {"days": dbmod.get_daily_pl(db, start, end)}
 
 
-def handle_trigger_scan(db: sqlite3.Connection, params: dict) -> dict:
+def handle_trigger_scan(db: DbConn, params: dict) -> dict:
     """Queue a scan cycle. The background scan loop picks this up within seconds."""
     now = int(time.time())
     db.execute(
-        "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
+        "INSERT INTO settings (key, value, updated_at) VALUES (%s, %s, %s)"
+        " ON CONFLICT (key) DO UPDATE SET"
+        " value = EXCLUDED.value, updated_at = EXCLUDED.updated_at",
         ("_scan_requested", "1", now),
     )
     db.commit()

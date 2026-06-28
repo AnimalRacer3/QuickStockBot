@@ -9,7 +9,9 @@ from collections.abc import Generator
 
 import pytest
 
-# ─── Full DB schema (migrations 001–004 inlined) ──────────────────────────────
+from bot.control.connection import DbConn
+
+# ─── Full DB schema (SQLite-compatible for tests) ─────────────────────────────
 
 _SCHEMA_SQL = """
 CREATE TABLE settings (
@@ -142,8 +144,8 @@ _DEFAULT_SETTINGS = [
 
 
 @pytest.fixture
-def db() -> Generator[sqlite3.Connection, None, None]:
-    """In-memory SQLite DB with the full schema and default settings seeded."""
+def db() -> Generator[DbConn, None, None]:
+    """In-memory SQLite DB wrapped in DbConn, with the full schema and default settings."""
     conn = sqlite3.connect(":memory:", check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
@@ -154,7 +156,8 @@ def db() -> Generator[sqlite3.Connection, None, None]:
         [(k, v, now) for k, v in _DEFAULT_SETTINGS],
     )
     conn.commit()
-    yield conn
+    db_conn = DbConn(conn, pg=False)
+    yield db_conn
     conn.close()
 
 
@@ -162,7 +165,7 @@ def db() -> Generator[sqlite3.Connection, None, None]:
 
 
 def insert_order(
-    conn: sqlite3.Connection,
+    conn: DbConn,
     *,
     order_id: str | None = None,
     symbol: str = "AAPL",
@@ -177,10 +180,10 @@ def insert_order(
     oid = order_id or str(uuid.uuid4())
     now = int(time.time())
     conn.execute(
-        """INSERT INTO orders
-           (id, symbol, side, order_type, quantity, limit_price,
-            filled_price, filled_quantity, status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        "INSERT INTO orders"
+        " (id, symbol, side, order_type, quantity, limit_price,"
+        "  filled_price, filled_quantity, status, created_at, updated_at)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
         (
             oid,
             symbol,
@@ -200,7 +203,7 @@ def insert_order(
 
 
 def insert_trade(
-    conn: sqlite3.Connection,
+    conn: DbConn,
     *,
     trade_id: str | None = None,
     symbol: str = "AAPL",
@@ -216,11 +219,11 @@ def insert_trade(
     tid = trade_id or str(uuid.uuid4())
     now = int(time.time())
     conn.execute(
-        """INSERT INTO trades
-           (id, symbol, entry_order_id, exit_order_id,
-            entry_price, exit_price, quantity, net_pnl,
-            fees, label, status, opened_at, closed_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        "INSERT INTO trades"
+        " (id, symbol, entry_order_id, exit_order_id,"
+        "  entry_price, exit_price, quantity, net_pnl,"
+        "  fees, label, status, opened_at, closed_at)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
         (
             tid,
             symbol,
@@ -242,7 +245,7 @@ def insert_trade(
 
 
 def insert_ticker(
-    conn: sqlite3.Connection,
+    conn: DbConn,
     *,
     symbol: str = "AAPL",
     price: float = 10.0,
@@ -271,11 +274,26 @@ def insert_ticker(
         }
     )
     conn.execute(
-        """INSERT OR REPLACE INTO active_tickers
-           (symbol, price, volume, macd, signal, state, updated_at,
-            rvol, float_shares, unknown_float, scanner_tradable,
-            pct_change, role, score, macd_state_json)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+        "INSERT INTO active_tickers"
+        " (symbol, price, volume, macd, signal, state, updated_at,"
+        "  rvol, float_shares, unknown_float, scanner_tradable,"
+        "  pct_change, role, score, macd_state_json)"
+        " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"
+        " ON CONFLICT (symbol) DO UPDATE SET"
+        "  price = EXCLUDED.price,"
+        "  volume = EXCLUDED.volume,"
+        "  macd = EXCLUDED.macd,"
+        "  signal = EXCLUDED.signal,"
+        "  state = EXCLUDED.state,"
+        "  updated_at = EXCLUDED.updated_at,"
+        "  rvol = EXCLUDED.rvol,"
+        "  float_shares = EXCLUDED.float_shares,"
+        "  unknown_float = EXCLUDED.unknown_float,"
+        "  scanner_tradable = EXCLUDED.scanner_tradable,"
+        "  pct_change = EXCLUDED.pct_change,"
+        "  role = EXCLUDED.role,"
+        "  score = EXCLUDED.score,"
+        "  macd_state_json = EXCLUDED.macd_state_json",
         (
             symbol,
             price,
