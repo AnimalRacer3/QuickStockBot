@@ -70,6 +70,7 @@ export function createLicenseRepository(db: Database.Database) {
         status: "active",
         issuedAt,
         expiresAt: expiresAt ?? null,
+        connectionPassword: null,
       };
     },
 
