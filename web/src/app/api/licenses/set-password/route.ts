@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getLicenseDb } from "@/lib/license-db";
-import { createLicenseRepository } from "@/lib/license";
+import { getLicense, validateLicense, setConnectionPassword } from "@/lib/license";
 
 /**
  * POST /api/licenses/set-password
@@ -30,18 +29,17 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const repo = createLicenseRepository(getLicenseDb());
-  const license = repo.getLicense(license_key);
+  const license = await getLicense(license_key);
 
   if (!license) {
     return NextResponse.json({ ok: false, error: "license not found" }, { status: 404 });
   }
 
-  const status = repo.validateLicense(license_key);
+  const status = await validateLicense(license_key);
   if (status !== "active") {
     return NextResponse.json({ ok: false, error: `license is ${status}` }, { status: 403 });
   }
 
-  repo.setConnectionPassword(license_key, connection_password);
+  await setConnectionPassword(license_key, connection_password);
   return NextResponse.json({ ok: true });
 }

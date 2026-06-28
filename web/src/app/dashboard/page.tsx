@@ -3,8 +3,7 @@ import { redirect } from "next/navigation";
 import { verifySession, SESSION_COOKIE } from "@/lib/session";
 import { prisma } from "@/lib/db";
 import { isAccessAllowed, statusLabel } from "@/lib/subscription";
-import { getLicenseDb } from "@/lib/license-db";
-import { createLicenseRepository } from "@/lib/license";
+import { getLicenseByUserId } from "@/lib/license";
 import Link from "next/link";
 import { BotConnectionCard } from "./BotConnectionCard";
 import { CopyButton } from "./CopyButton";
@@ -38,8 +37,7 @@ export default async function DashboardPage() {
   const trialEnd = user.trialEnd ? new Date(user.trialEnd) : null;
   const periodEnd = user.currentPeriodEnd ? new Date(user.currentPeriodEnd) : null;
 
-  const repo = createLicenseRepository(getLicenseDb());
-  const license = repo.getLicenseByUserId(session.userId);
+  const license = await getLicenseByUserId(session.userId);
 
   return (
     <div className="min-h-screen flex flex-col pt-16">

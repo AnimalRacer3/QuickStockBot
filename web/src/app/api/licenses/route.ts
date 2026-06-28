@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { getLicenseDb } from "@/lib/license-db";
-import { createLicenseRepository } from "@/lib/license";
+import { issueLicense } from "@/lib/license";
 import { sendLicenseEmail } from "@/lib/email";
 import { Resend } from "resend";
 
@@ -37,8 +36,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "no active subscription" }, { status: 403 });
     }
 
-    const repo = createLicenseRepository(getLicenseDb());
-    const license = repo.issueLicense(user.id);
+    const license = await issueLicense(user.id);
 
     const resendClient = new Resend(process.env.RESEND_API_KEY);
     await sendLicenseEmail(resendClient, {
