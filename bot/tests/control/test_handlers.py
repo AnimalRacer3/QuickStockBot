@@ -7,11 +7,11 @@ Every protocol method is exercised against /shared schema expectations.
 from __future__ import annotations
 
 import asyncio
-import sqlite3
 import uuid
 
 import pytest
 
+from bot.control.connection import DbConn
 from bot.control.handlers import (
     handle_get_active_tickers,
     handle_get_daily_pl,
@@ -33,7 +33,7 @@ from tests.control.mock_relay import MockSocketFactory
 
 
 class TestGetState:
-    def test_returns_tickers_and_account(self, db: sqlite3.Connection) -> None:
+    def test_returns_tickers_and_account(self, db: DbConn) -> None:
         insert_ticker(db, symbol="TSLA")
         result = handle_get_state(db, {})
         assert isinstance(result["tickers"], list)
@@ -41,13 +41,13 @@ class TestGetState:
         # account may be None when no snapshot is cached
         assert "account" in result
 
-    def test_empty_tickers(self, db: sqlite3.Connection) -> None:
+    def test_empty_tickers(self, db: DbConn) -> None:
         result = handle_get_state(db, {})
         assert result["tickers"] == []
 
 
 class TestGetActiveTickers:
-    def test_returns_symbols_list(self, db: sqlite3.Connection) -> None:
+    def test_returns_symbols_list(self, db: DbConn) -> None:
         insert_ticker(db, symbol="AAPL")
         insert_ticker(db, symbol="MSFT")
         result = handle_get_active_tickers(db, {})
@@ -55,7 +55,7 @@ class TestGetActiveTickers:
 
 
 class TestGetTickerDetail:
-    def test_returns_full_state_with_new_fields(self, db: sqlite3.Connection) -> None:
+    def test_returns_full_state_with_new_fields(self, db: DbConn) -> None:
         insert_ticker(
             db,
             symbol="NVDA",
@@ -82,17 +82,17 @@ class TestGetTickerDetail:
         assert result["macd_favorability"] is not None
         assert result["macd_eligible"] is not None
 
-    def test_missing_ticker_raises(self, db: sqlite3.Connection) -> None:
+    def test_missing_ticker_raises(self, db: DbConn) -> None:
         with pytest.raises(ValueError, match="not found"):
             handle_get_ticker_detail(db, {"symbol": "FAKE"})
 
-    def test_missing_symbol_param_raises(self, db: sqlite3.Connection) -> None:
+    def test_missing_symbol_param_raises(self, db: DbConn) -> None:
         with pytest.raises(ValueError, match="required"):
             handle_get_ticker_detail(db, {})
 
 
 class TestGetSettings:
-    def test_returns_all_required_fields(self, db: sqlite3.Connection) -> None:
+    def test_returns_all_required_fields(self, db: DbConn) -> None:
         result = handle_get_settings(db, {})
         for field in (
             "bot_id",
@@ -114,7 +114,7 @@ class TestGetSettings:
         ):
             assert field in result, f"Missing field: {field}"
 
-    def test_goal_post_computed(self, db: sqlite3.Connection) -> None:
+    def test_goal_post_computed(self, db: DbConn) -> None:
         result = handle_get_settings(db, {})
         daily = result["daily_risk_pct"]
         per_trade = result["risk_per_trade_pct"]
@@ -123,11 +123,11 @@ class TestGetSettings:
 
 
 class TestUpdateSettings:
-    def test_basic_update_persists(self, db: sqlite3.Connection) -> None:
+    def test_basic_update_persists(self, db: DbConn) -> None:
         result = handle_update_settings(db, {"patch": {"min_score": 70.0}})
         assert result["min_score"] == pytest.approx(70.0)
 
-    def test_daily_target_mode_round_trips(self, db: sqlite3.Connection) -> None:
+    def test_daily_target_mode_round_trips(self, db: DbConn) -> None:
         result = handle_update_settings(db, {"patch": {"daily_target_mode": "stop"}})
         assert result["daily_target_mode"] == "stop"
         result2 = handle_update_settings(
@@ -135,18 +135,16 @@ class TestUpdateSettings:
         )
         assert result2["daily_target_mode"] == "giveback"
 
-    def test_daily_giveback_pct_round_trips(self, db: sqlite3.Connection) -> None:
+    def test_daily_giveback_pct_round_trips(self, db: DbConn) -> None:
         result = handle_update_settings(db, {"patch": {"daily_giveback_pct": 40.0}})
         assert result["daily_giveback_pct"] == pytest.approx(40.0)
 
-    def test_default_daily_target_mode_is_giveback(
-        self, db: sqlite3.Connection
-    ) -> None:
+    def test_default_daily_target_mode_is_giveback(self, db: DbConn) -> None:
         result = handle_get_settings(db, {})
         assert result["daily_target_mode"] == "giveback"
         assert result["daily_giveback_pct"] == pytest.approx(25.0)
 
-    def test_goal_post_returned(self, db: sqlite3.Connection) -> None:
+    def test_goal_post_returned(self, db: DbConn) -> None:
         # Enable override and set risk values explicitly
         handle_update_settings(
             db,
@@ -161,31 +159,31 @@ class TestUpdateSettings:
         result = handle_get_settings(db, {})
         assert result["goal_post_trade_count"] == 3  # floor(6/2)
 
-    def test_ignores_read_only_goal_post(self, db: sqlite3.Connection) -> None:
+    def test_ignores_read_only_goal_post(self, db: DbConn) -> None:
         # Sending goal_post_trade_count in patch must be silently ignored
         result = handle_update_settings(db, {"patch": {"goal_post_trade_count": 999}})
         assert result["goal_post_trade_count"] != 999
 
 
 class TestGetLists:
-    def test_empty_lists(self, db: sqlite3.Connection) -> None:
+    def test_empty_lists(self, db: DbConn) -> None:
         result = handle_get_lists(db, {})
         assert result == {"watchlist": [], "blacklist": []}
 
-    def test_returns_active_symbols(self, db: sqlite3.Connection) -> None:
+    def test_returns_active_symbols(self, db: DbConn) -> None:
         handle_update_lists(db, {"watchlist": ["AAPL", "TSLA"]})
         result = handle_get_lists(db, {})
         assert sorted(result["watchlist"]) == ["AAPL", "TSLA"]
 
 
 class TestUpdateLists:
-    def test_replace_watchlist(self, db: sqlite3.Connection) -> None:
+    def test_replace_watchlist(self, db: DbConn) -> None:
         handle_update_lists(db, {"watchlist": ["AAPL"]})
         handle_update_lists(db, {"watchlist": ["MSFT", "NVDA"]})
         result = handle_get_lists(db, {})
         assert sorted(result["watchlist"]) == ["MSFT", "NVDA"]
 
-    def test_independent_update(self, db: sqlite3.Connection) -> None:
+    def test_independent_update(self, db: DbConn) -> None:
         handle_update_lists(db, {"watchlist": ["AAPL"], "blacklist": ["FAKE"]})
         handle_update_lists(db, {"watchlist": ["TSLA"]})
         result = handle_get_lists(db, {})
@@ -194,7 +192,7 @@ class TestUpdateLists:
 
 
 class TestGetTradeHistory:
-    def test_pagination(self, db: sqlite3.Connection) -> None:
+    def test_pagination(self, db: DbConn) -> None:
         for _ in range(5):
             oid = insert_order(db)
             insert_trade(db, entry_order_id=oid)
@@ -206,7 +204,7 @@ class TestGetTradeHistory:
         assert len(page1["trades"]) == 3
         assert len(page2["trades"]) == 2
 
-    def test_entry_order_embedded(self, db: sqlite3.Connection) -> None:
+    def test_entry_order_embedded(self, db: DbConn) -> None:
         oid = insert_order(db, symbol="GOOG", filled_price=10.0)
         insert_trade(db, entry_order_id=oid, symbol="GOOG")
         result = handle_get_trade_history(db, {"limit": 10, "offset": 0})
@@ -216,24 +214,24 @@ class TestGetTradeHistory:
 
 
 class TestGetOrderDetail:
-    def test_returns_order(self, db: sqlite3.Connection) -> None:
+    def test_returns_order(self, db: DbConn) -> None:
         oid = insert_order(db, symbol="NVDA", quantity=5.0)
         result = handle_get_order_detail(db, {"order_id": oid})
         assert result["id"] == oid
         assert result["symbol"] == "NVDA"
         assert result["qty"] == pytest.approx(5.0)
 
-    def test_missing_order_raises(self, db: sqlite3.Connection) -> None:
+    def test_missing_order_raises(self, db: DbConn) -> None:
         with pytest.raises(ValueError, match="not found"):
             handle_get_order_detail(db, {"order_id": "nonexistent"})
 
 
 class TestSubscribeLogs:
-    def test_returns_subscribed_true(self, db: sqlite3.Connection) -> None:
+    def test_returns_subscribed_true(self, db: DbConn) -> None:
         result = handle_subscribe_logs(db, {"min_level": "info"})
         assert result == {"subscribed": True}
 
-    def test_calls_on_subscribe(self, db: sqlite3.Connection) -> None:
+    def test_calls_on_subscribe(self, db: DbConn) -> None:
         captured: list[dict] = []
         handle_subscribe_logs(
             db,
@@ -244,7 +242,7 @@ class TestSubscribeLogs:
 
 
 class TestGetDailyPL:
-    def test_missing_params_raises(self, db: sqlite3.Connection) -> None:
+    def test_missing_params_raises(self, db: DbConn) -> None:
         with pytest.raises(ValueError, match="required"):
             handle_get_daily_pl(db, {})
 
@@ -252,7 +250,7 @@ class TestGetDailyPL:
 # ─── Full round-trip via MockRelaySocket ─────────────────────────────────────
 
 
-def _make_client(db: sqlite3.Connection, factory: MockSocketFactory) -> RelayClient:
+def _make_client(db: DbConn, factory: MockSocketFactory) -> RelayClient:
     return RelayClient(
         url="ws://mock-relay",
         bot_id="test-bot-id",
@@ -264,7 +262,7 @@ def _make_client(db: sqlite3.Connection, factory: MockSocketFactory) -> RelayCli
 
 
 async def _rpc_roundtrip(
-    db: sqlite3.Connection,
+    db: DbConn,
     method: str,
     params: dict | None = None,
 ) -> dict:
@@ -305,7 +303,7 @@ async def _rpc_roundtrip(
 
 
 @pytest.mark.anyio
-async def test_get_state_round_trip(db: sqlite3.Connection) -> None:
+async def test_get_state_round_trip(db: DbConn) -> None:
     insert_ticker(db, symbol="AMZN")
     resp = await _rpc_roundtrip(db, "get_state")
     assert resp["type"] == "rpc_response"
@@ -313,21 +311,21 @@ async def test_get_state_round_trip(db: sqlite3.Connection) -> None:
 
 
 @pytest.mark.anyio
-async def test_get_active_tickers_round_trip(db: sqlite3.Connection) -> None:
+async def test_get_active_tickers_round_trip(db: DbConn) -> None:
     insert_ticker(db, symbol="META")
     resp = await _rpc_roundtrip(db, "get_active_tickers")
     assert "META" in resp["payload"]["result"]["symbols"]
 
 
 @pytest.mark.anyio
-async def test_get_ticker_detail_round_trip(db: sqlite3.Connection) -> None:
+async def test_get_ticker_detail_round_trip(db: DbConn) -> None:
     insert_ticker(db, symbol="PLTR")
     resp = await _rpc_roundtrip(db, "get_ticker_detail", {"symbol": "PLTR"})
     assert resp["payload"]["result"]["symbol"] == "PLTR"
 
 
 @pytest.mark.anyio
-async def test_get_settings_round_trip(db: sqlite3.Connection) -> None:
+async def test_get_settings_round_trip(db: DbConn) -> None:
     resp = await _rpc_roundtrip(db, "get_settings")
     result = resp["payload"]["result"]
     assert "goal_post_trade_count" in result
@@ -335,13 +333,13 @@ async def test_get_settings_round_trip(db: sqlite3.Connection) -> None:
 
 
 @pytest.mark.anyio
-async def test_update_settings_round_trip(db: sqlite3.Connection) -> None:
+async def test_update_settings_round_trip(db: DbConn) -> None:
     resp = await _rpc_roundtrip(db, "update_settings", {"patch": {"min_score": 55.0}})
     assert resp["payload"]["result"]["min_score"] == pytest.approx(55.0)
 
 
 @pytest.mark.anyio
-async def test_get_lists_round_trip(db: sqlite3.Connection) -> None:
+async def test_get_lists_round_trip(db: DbConn) -> None:
     resp = await _rpc_roundtrip(db, "get_lists")
     result = resp["payload"]["result"]
     assert "watchlist" in result
@@ -349,13 +347,13 @@ async def test_get_lists_round_trip(db: sqlite3.Connection) -> None:
 
 
 @pytest.mark.anyio
-async def test_update_lists_round_trip(db: sqlite3.Connection) -> None:
+async def test_update_lists_round_trip(db: DbConn) -> None:
     resp = await _rpc_roundtrip(db, "update_lists", {"watchlist": ["AAPL", "TSLA"]})
     assert "AAPL" in resp["payload"]["result"]["watchlist"]
 
 
 @pytest.mark.anyio
-async def test_get_trade_history_round_trip(db: sqlite3.Connection) -> None:
+async def test_get_trade_history_round_trip(db: DbConn) -> None:
     oid = insert_order(db)
     insert_trade(db, entry_order_id=oid)
     resp = await _rpc_roundtrip(db, "get_trade_history", {"limit": 10, "offset": 0})
@@ -363,20 +361,20 @@ async def test_get_trade_history_round_trip(db: sqlite3.Connection) -> None:
 
 
 @pytest.mark.anyio
-async def test_get_order_detail_round_trip(db: sqlite3.Connection) -> None:
+async def test_get_order_detail_round_trip(db: DbConn) -> None:
     oid = insert_order(db, symbol="SNOW")
     resp = await _rpc_roundtrip(db, "get_order_detail", {"order_id": oid})
     assert resp["payload"]["result"]["symbol"] == "SNOW"
 
 
 @pytest.mark.anyio
-async def test_subscribe_logs_round_trip(db: sqlite3.Connection) -> None:
+async def test_subscribe_logs_round_trip(db: DbConn) -> None:
     resp = await _rpc_roundtrip(db, "subscribe_logs", {"min_level": "info"})
     assert resp["payload"]["result"]["subscribed"] is True
 
 
 @pytest.mark.anyio
-async def test_get_daily_pl_round_trip(db: sqlite3.Connection) -> None:
+async def test_get_daily_pl_round_trip(db: DbConn) -> None:
     from bot.control.db import mark_run_day
 
     mark_run_day(db, "2024-01-15")
@@ -389,7 +387,7 @@ async def test_get_daily_pl_round_trip(db: sqlite3.Connection) -> None:
 
 
 @pytest.mark.anyio
-async def test_unknown_method_returns_error(db: sqlite3.Connection) -> None:
+async def test_unknown_method_returns_error(db: DbConn) -> None:
     resp = await _rpc_roundtrip(db, "nonexistent_method")
     error = resp["payload"]["error"]
     assert error["code"] == "UNKNOWN_METHOD"

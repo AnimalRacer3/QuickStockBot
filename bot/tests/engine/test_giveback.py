@@ -423,6 +423,7 @@ class TestGivebackSettingsHandlers:
     def test_default_daily_target_mode_is_giveback(self) -> None:
         import sqlite3
 
+        from bot.control.connection import DbConn
         from bot.control.handlers import handle_get_settings
 
         conn = sqlite3.connect(":memory:", check_same_thread=False)
@@ -434,13 +435,14 @@ class TestGivebackSettingsHandlers:
             INSERT INTO settings VALUES ('daily_giveback_pct', '25.0', 1);
             """
         )
-        result = handle_get_settings(conn, {})
+        result = handle_get_settings(DbConn(conn, pg=False), {})
         assert result["daily_target_mode"] == "giveback"
         assert result["daily_giveback_pct"] == pytest.approx(25.0)
 
     def test_update_daily_target_mode(self) -> None:
         import sqlite3
 
+        from bot.control.connection import DbConn
         from bot.control.handlers import handle_update_settings
 
         conn = sqlite3.connect(":memory:", check_same_thread=False)
@@ -457,7 +459,8 @@ class TestGivebackSettingsHandlers:
             """
         )
         result = handle_update_settings(
-            conn, {"patch": {"daily_target_mode": "stop", "daily_giveback_pct": 30.0}}
+            DbConn(conn, pg=False),
+            {"patch": {"daily_target_mode": "stop", "daily_giveback_pct": 30.0}},
         )
         assert result["daily_target_mode"] == "stop"
         assert result["daily_giveback_pct"] == pytest.approx(30.0)
@@ -465,6 +468,7 @@ class TestGivebackSettingsHandlers:
     def test_giveback_pct_round_trips(self) -> None:
         import sqlite3
 
+        from bot.control.connection import DbConn
         from bot.control.handlers import handle_get_settings, handle_update_settings
 
         conn = sqlite3.connect(":memory:", check_same_thread=False)
@@ -480,8 +484,9 @@ class TestGivebackSettingsHandlers:
             INSERT INTO settings VALUES ('risk_per_trade_pct', '1.0', 1);
             """
         )
-        handle_update_settings(conn, {"patch": {"daily_giveback_pct": 33.5}})
-        result = handle_get_settings(conn, {})
+        db = DbConn(conn, pg=False)
+        handle_update_settings(db, {"patch": {"daily_giveback_pct": 33.5}})
+        result = handle_get_settings(db, {})
         assert result["daily_giveback_pct"] == pytest.approx(33.5)
 
     def test_in_giveback_mode_profit_target_is_arm_point(self) -> None:
