@@ -25,6 +25,7 @@ def ts_to_iso(ts: int | None) -> str | None:
 # ─── Settings ─────────────────────────────────────────────────────────────────
 
 SETTING_DEFAULTS: dict[str, str | None] = {
+    # Connection / auth
     "bot_id": "",
     "relay_url": "",
     "license_key": "",
@@ -33,16 +34,51 @@ SETTING_DEFAULTS: dict[str, str | None] = {
     "broker": "alpaca",
     "broker_api_key": None,
     "broker_api_secret": None,
+    # Positions / scoring
     "max_positions": "5",
     "risk_per_trade_pct": "1.0",
     "daily_risk_pct": "5.0",
     "risk_override_enabled": "false",
     "min_score": "60.0",
     "auto_trade": "false",
+    "log_level": "info",
+    # Daily target mode
+    "daily_target_mode": "giveback",
+    "daily_giveback_pct": "25.0",
+    # Scanner
+    "pre_open_lead_hours": "1.0",
+    "scan_duration_hours": "3.0",
+    "scanner_refresh_seconds": "60",
+    "relative_volume_min": "2.0",
+    "gap_up_min_pct": "5.0",
+    "max_float_shares": "20000000",
+    "include_unknown_float": "true",
+    "require_news": "true",
+    "active_tickers_n": "5",
+    "prior_profit_bias_weight": "0.5",
+    # Patterns / MACD
+    "enabled_patterns": '["bullish_engulfing","hammer","morning_star","bullish_continuation"]',
+    "pattern_candle_lookback": "5",
     "macd_fast": "12",
     "macd_slow": "26",
     "macd_signal": "9",
-    "log_level": "info",
+    "macd_slope_lookback": "3",
+    "macd_enforce_above_zero": "false",
+    # Risk / daily limits (web-facing names; None = not explicitly set,
+    # _build_settings_response falls back to legacy daily_risk_pct / risk_override_enabled)
+    "daily_max_loss_pct": None,
+    "daily_profit_target_pct": "7.0",
+    "override_risk_per_trade": None,
+    "flatten_on_daily_loss": "true",
+    "flatten_on_daily_profit": "false",
+    # Exits
+    "exit_mode": "trail_off",
+    "trail_off_trigger": "candle_pattern",
+    "trail_off_fraction_per_candle": "0.25",
+    "stop_loss_pct": "2.0",
+    "take_profit_pct": "4.0",
+    "trailing_stop_enabled": "false",
+    "force_close_at_close": "true",
 }
 
 

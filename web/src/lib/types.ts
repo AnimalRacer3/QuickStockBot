@@ -67,9 +67,8 @@ export interface BotSettings {
 
   // Exits
   exit_mode: ExitMode;
-  trail_off_trigger?: number;
+  trail_off_trigger?: "per_candle" | "candle_pattern";
   trail_off_fraction_per_candle?: number;
-  trail_off_pattern?: string;
   stop_loss_pct: number;
   take_profit_pct: number;
   trailing_stop_enabled: boolean;

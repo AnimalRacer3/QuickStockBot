@@ -14,6 +14,7 @@ import os
 import platform
 import sqlite3
 import sys
+import time
 from pathlib import Path
 
 
@@ -417,6 +418,196 @@ def _init_db(db: sqlite3.Connection) -> None:
     db.commit()
 
 
+def _load_config_json_into_db(config_dir: Path, db: sqlite3.Connection) -> None:
+    """
+    One-time migration: read wizard config.json and insert any settings not
+    already present in the DB.  Existing DB rows (set via the web dashboard)
+    are never overwritten.
+    """
+    import json as _json
+
+    config_path = config_dir / "config.json"
+    if not config_path.exists():
+        return
+
+    logger = logging.getLogger(__name__)
+    try:
+        cfg = _json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning("Could not read config.json: %s", exc)
+        return
+
+    now = int(time.time())
+    inserted = 0
+    for section in ("scanner", "patterns", "risk"):
+        for key, val in cfg.get(section, {}).items():
+            if db.execute("SELECT 1 FROM settings WHERE key = ?", (key,)).fetchone():
+                continue
+            if isinstance(val, list):
+                serialized = _json.dumps(val)
+            elif isinstance(val, bool):
+                serialized = "true" if val else "false"
+            else:
+                serialized = str(val)
+            db.execute(
+                "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
+                (key, serialized, now),
+            )
+            inserted += 1
+
+    if inserted:
+        db.commit()
+        logger.info("Migrated %d settings from config.json into DB", inserted)
+
+
+async def _scan_loop(db: sqlite3.Connection) -> None:
+    """
+    Background loop: polls for a scan request flag set by the trigger_scan RPC
+    and runs the momentum scanner when triggered.
+    """
+    import json as _json
+    import time as _time
+
+    logger = logging.getLogger(__name__)
+
+    while True:
+        await asyncio.sleep(5)
+
+        row = db.execute(
+            "SELECT value FROM settings WHERE key = '_scan_requested'"
+        ).fetchone()
+        if not row or row[0] != "1":
+            continue
+
+        # Clear flag before running so a second trigger during the scan is honoured
+        db.execute(
+            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
+            ("_scan_requested", "0", int(_time.time())),
+        )
+        db.commit()
+
+        logger.info("Scan triggered — starting scanner")
+        try:
+            from bot.alpaca.client import AlpacaClient
+            from bot.alpaca.config import AlpacaConfig
+            from bot.control import db as dbmod
+            from bot.scanner.config import ScannerConfig
+            from bot.scanner.scanner import run_scan
+            from bot.ta.config import TAConfig
+
+            alpaca_cfg = AlpacaConfig.from_env()
+            client = AlpacaClient(alpaca_cfg)
+            raw = dbmod.get_all_settings_raw(db)
+
+            _def_patterns = [
+                "bullish_engulfing",
+                "hammer",
+                "morning_star",
+                "bullish_continuation",
+            ]
+            scanner_cfg = ScannerConfig(
+                pre_open_lead_hours=dbmod.coerce_float(
+                    raw.get("pre_open_lead_hours"), 1.0
+                ),
+                scan_duration_hours=dbmod.coerce_float(
+                    raw.get("scan_duration_hours"), 3.0
+                ),
+                relative_volume_min=dbmod.coerce_float(
+                    raw.get("relative_volume_min"), 2.0
+                ),
+                gap_up_min_pct=dbmod.coerce_float(raw.get("gap_up_min_pct"), 5.0),
+                max_float_shares=dbmod.coerce_int(
+                    raw.get("max_float_shares"), 20_000_000
+                ),
+                include_unknown_float=dbmod.coerce_bool(
+                    raw.get("include_unknown_float"), True
+                ),
+                active_tickers_n=dbmod.coerce_int(raw.get("active_tickers_n"), 5),
+                require_news=dbmod.coerce_bool(raw.get("require_news"), True),
+            )
+            ta_cfg = TAConfig(
+                macd_fast=dbmod.coerce_int(raw.get("macd_fast"), 12),
+                macd_slow=dbmod.coerce_int(raw.get("macd_slow"), 26),
+                macd_signal=dbmod.coerce_int(raw.get("macd_signal"), 9),
+                macd_enforce_above_zero=dbmod.coerce_bool(
+                    raw.get("macd_enforce_above_zero"), False
+                ),
+                pattern_candle_lookback=dbmod.coerce_int(
+                    raw.get("pattern_candle_lookback"), 5
+                ),
+                enabled_patterns=dbmod.coerce_list(raw.get("enabled_patterns"))
+                or _def_patterns,
+            )
+            watchlist = dbmod.coerce_list(raw.get("watchlist"))
+
+            loop = asyncio.get_event_loop()
+
+            def _do_scan():
+                assets = client.list_assets()
+                symbols = list(
+                    {a.symbol for a in assets if a.tradable} | set(watchlist)
+                )
+                return run_scan(
+                    symbols=symbols,
+                    client=client,
+                    config=scanner_cfg,
+                    ta_config=ta_cfg,
+                    news_by_symbol={},
+                )
+
+            result = await loop.run_in_executor(None, _do_scan)
+
+            if result is None:
+                logger.info("Scan: outside scan window, no results written")
+                continue
+
+            scan_ts = int(_time.time())
+            db.execute("DELETE FROM active_tickers")
+            for ticker in result.candidates:
+                db.execute(
+                    """INSERT OR REPLACE INTO active_tickers
+                       (symbol, price, volume, macd, signal, state, updated_at,
+                        gap_pct, rvol, float_shares, unknown_float, scanner_tradable,
+                        pct_change, macd_state_json, pattern_tags_json, role, score)
+                       VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        ticker.symbol,
+                        ticker.price,
+                        ticker.macd_state.value,
+                        ticker.macd_state.value,
+                        "active"
+                        if ticker.symbol in result.active_set
+                        else "watching",
+                        scan_ts,
+                        ticker.gap_pct,
+                        ticker.rvol,
+                        ticker.float_shares,
+                        1 if ticker.unknown_float else 0,
+                        1 if ticker.tradable else 0,
+                        ticker.pct_change,
+                        _json.dumps(
+                            {
+                                "value": ticker.macd_state.value,
+                                "slope": ticker.macd_state.slope,
+                                "favorability": ticker.macd_state.favorability,
+                                "eligible": ticker.macd_state.eligible,
+                            }
+                        ),
+                        _json.dumps(ticker.pattern_tags),
+                        ticker.role,
+                        ticker.score,
+                    ),
+                )
+            db.commit()
+            logger.info(
+                "Scan complete: %d candidates, active=[%s]",
+                len(result.candidates),
+                ", ".join(result.active_set),
+            )
+        except Exception:
+            logger.exception("Scan loop error")
+
+
 def main() -> None:
     config_dir = _config_dir()
 
@@ -505,6 +696,9 @@ async def _run(config_dir: Path) -> None:
     db.execute("PRAGMA foreign_keys = ON")
     _init_db(db)
 
+    # Migrate wizard config.json into DB (no-op if keys already exist)
+    _load_config_json_into_db(config_dir, db)
+
     _local_api_mod._db_path = db_path
 
     relay = RelayClient(
@@ -520,7 +714,7 @@ async def _run(config_dir: Path) -> None:
     )
     server = uvicorn.Server(uv_config)
 
-    await asyncio.gather(relay.run(), server.serve())
+    await asyncio.gather(relay.run(), server.serve(), _scan_loop(db))
 
 
 if __name__ == "__main__":

@@ -22,6 +22,7 @@ from bot.control.handlers import (
     handle_get_state,
     handle_get_ticker_detail,
     handle_get_trade_history,
+    handle_trigger_scan,
     handle_update_lists,
     handle_update_settings,
 )
@@ -145,6 +146,11 @@ def api_get_daily_pl(
         return JSONResponse(handle_get_daily_pl(db, {"start": start, "end": end}))
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
+
+
+@app.post("/scan/trigger")
+def api_trigger_scan(db: sqlite3.Connection = Depends(_get_db)) -> JSONResponse:
+    return JSONResponse(handle_trigger_scan(db, {}))
 
 
 @app.get("/logs")
