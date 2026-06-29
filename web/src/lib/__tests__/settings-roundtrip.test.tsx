@@ -112,7 +112,7 @@ describe("Settings round-trip", () => {
     const trailRadio = screen.getByDisplayValue("trail_off");
     fireEvent.click(trailRadio);
 
-    expect(screen.getByText("Trail Off Trigger (%)")).toBeDefined();
+    expect(screen.getByText("Trail Off Trigger")).toBeDefined();
   });
 
   it("trail_off fields hidden when exit_mode=dump", async () => {
@@ -120,7 +120,7 @@ describe("Settings round-trip", () => {
     renderWithClient(client);
     await waitFor(() => expect(client.getSettings).toHaveBeenCalled());
 
-    expect(screen.queryByText("Trail Off Trigger (%)")).toBeNull();
+    expect(screen.queryByText("Trail Off Trigger")).toBeNull();
   });
 
   it("include_unknown_float toggle persisted in patch", async () => {

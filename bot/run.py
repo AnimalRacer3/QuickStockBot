@@ -14,7 +14,9 @@ import os
 import platform
 import sqlite3
 import sys
+import time
 from pathlib import Path
+from typing import Any
 
 
 def _config_dir() -> Path:
@@ -417,6 +419,603 @@ def _init_db(db: sqlite3.Connection) -> None:
     db.commit()
 
 
+def _load_config_json_into_db(config_dir: Path, db: sqlite3.Connection) -> None:
+    """
+    One-time migration: read wizard config.json and insert any settings not
+    already present in the DB.  Existing DB rows (set via the web dashboard)
+    are never overwritten.
+    """
+    import json as _json
+
+    config_path = config_dir / "config.json"
+    if not config_path.exists():
+        return
+
+    logger = logging.getLogger(__name__)
+    try:
+        cfg = _json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.warning("Could not read config.json: %s", exc)
+        return
+
+    now = int(time.time())
+    inserted = 0
+    for section in ("scanner", "patterns", "risk"):
+        for key, val in cfg.get(section, {}).items():
+            if db.execute("SELECT 1 FROM settings WHERE key = ?", (key,)).fetchone():
+                continue
+            if isinstance(val, list):
+                serialized = _json.dumps(val)
+            elif isinstance(val, bool):
+                serialized = "true" if val else "false"
+            else:
+                serialized = str(val)
+            db.execute(
+                "INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
+                (key, serialized, now),
+            )
+            inserted += 1
+
+    if inserted:
+        db.commit()
+        logger.info("Migrated %d settings from config.json into DB", inserted)
+
+
+async def _scan_loop(db: sqlite3.Connection) -> None:
+    """
+    Background loop: polls for a scan request flag set by the trigger_scan RPC
+    and runs the momentum scanner when triggered.
+    """
+    import json as _json
+    import time as _time
+
+    logger = logging.getLogger(__name__)
+
+    while True:
+        await asyncio.sleep(5)
+
+        row = db.execute(
+            "SELECT value FROM settings WHERE key = '_scan_requested'"
+        ).fetchone()
+        if not row or row[0] != "1":
+            continue
+
+        # Clear flag before running so a second trigger during the scan is honoured
+        db.execute(
+            "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)",
+            ("_scan_requested", "0", int(_time.time())),
+        )
+        db.commit()
+
+        logger.info("Scan triggered — starting scanner")
+        try:
+            from bot.alpaca.client import AlpacaClient
+            from bot.alpaca.config import AlpacaConfig
+            from bot.control import db as dbmod
+            from bot.scanner.config import ScannerConfig
+            from bot.scanner.scanner import run_scan
+            from bot.ta.config import TAConfig
+
+            alpaca_cfg = AlpacaConfig.from_env()
+            client = AlpacaClient(alpaca_cfg)
+            raw = dbmod.get_all_settings_raw(db)
+
+            _def_patterns = [
+                "bullish_engulfing",
+                "hammer",
+                "morning_star",
+                "bullish_continuation",
+            ]
+            scanner_cfg = ScannerConfig(
+                pre_open_lead_hours=dbmod.coerce_float(
+                    raw.get("pre_open_lead_hours"), 1.0
+                ),
+                scan_duration_hours=dbmod.coerce_float(
+                    raw.get("scan_duration_hours"), 3.0
+                ),
+                relative_volume_min=dbmod.coerce_float(
+                    raw.get("relative_volume_min"), 2.0
+                ),
+                gap_up_min_pct=dbmod.coerce_float(raw.get("gap_up_min_pct"), 5.0),
+                max_float_shares=dbmod.coerce_int(
+                    raw.get("max_float_shares"), 20_000_000
+                ),
+                include_unknown_float=dbmod.coerce_bool(
+                    raw.get("include_unknown_float"), True
+                ),
+                active_tickers_n=dbmod.coerce_int(raw.get("active_tickers_n"), 5),
+                require_news=dbmod.coerce_bool(raw.get("require_news"), True),
+            )
+            ta_cfg = TAConfig(
+                macd_fast=dbmod.coerce_int(raw.get("macd_fast"), 12),
+                macd_slow=dbmod.coerce_int(raw.get("macd_slow"), 26),
+                macd_signal=dbmod.coerce_int(raw.get("macd_signal"), 9),
+                macd_enforce_above_zero=dbmod.coerce_bool(
+                    raw.get("macd_enforce_above_zero"), False
+                ),
+                pattern_candle_lookback=dbmod.coerce_int(
+                    raw.get("pattern_candle_lookback"), 5
+                ),
+                enabled_patterns=dbmod.coerce_list(raw.get("enabled_patterns"))
+                or _def_patterns,
+            )
+            watchlist = dbmod.coerce_list(raw.get("watchlist"))
+
+            loop = asyncio.get_event_loop()
+
+            def _do_scan():
+                assets = client.list_assets()
+                symbols = list(
+                    {a.symbol for a in assets if a.tradable} | set(watchlist)
+                )
+                return run_scan(
+                    symbols=symbols,
+                    client=client,
+                    config=scanner_cfg,
+                    ta_config=ta_cfg,
+                    news_by_symbol={},
+                )
+
+            result = await loop.run_in_executor(None, _do_scan)
+
+            if result is None:
+                logger.info("Scan: outside scan window, no results written")
+                continue
+
+            scan_ts = int(_time.time())
+            db.execute("DELETE FROM active_tickers")
+            for ticker in result.candidates:
+                db.execute(
+                    """INSERT OR REPLACE INTO active_tickers
+                       (symbol, price, volume, macd, signal, state, updated_at,
+                        gap_pct, rvol, float_shares, unknown_float, scanner_tradable,
+                        pct_change, macd_state_json, pattern_tags_json, role, score)
+                       VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    (
+                        ticker.symbol,
+                        ticker.price,
+                        ticker.macd_state.value,
+                        ticker.macd_state.value,
+                        "active" if ticker.symbol in result.active_set else "watching",
+                        scan_ts,
+                        ticker.gap_pct,
+                        ticker.rvol,
+                        ticker.float_shares,
+                        1 if ticker.unknown_float else 0,
+                        1 if ticker.tradable else 0,
+                        ticker.pct_change,
+                        _json.dumps(
+                            {
+                                "value": ticker.macd_state.value,
+                                "slope": ticker.macd_state.slope,
+                                "favorability": ticker.macd_state.favorability,
+                                "eligible": ticker.macd_state.eligible,
+                            }
+                        ),
+                        _json.dumps(ticker.pattern_tags),
+                        ticker.role,
+                        ticker.score,
+                    ),
+                )
+            db.commit()
+            logger.info(
+                "Scan complete: %d candidates, active=[%s]",
+                len(result.candidates),
+                ", ".join(result.active_set),
+            )
+        except Exception:
+            logger.exception("Scan loop error")
+
+
+async def _trading_loop(
+    db: sqlite3.Connection,
+    relay: "Any",  # RelayClient — avoid circular import at module level
+) -> None:
+    """
+    Main per-minute execution loop.
+
+    Skipped silently when Alpaca credentials are not configured so the relay
+    and scan trigger still work without broker credentials.
+
+    Flow per trading day:
+      1. Wait until the next market open.
+      2. Run a momentum scan to populate active_tickers.
+      3. Call session.start_day() to snapshot equity.
+      4. Every minute: fetch bars → session.run_cycle() → persist any new orders.
+      5. At market close end_day() force-closes positions.
+    """
+    import json as _json
+    import time as _time
+    from datetime import datetime, timedelta, timezone
+
+    _log = logging.getLogger(__name__)
+
+    # Bail out if Alpaca is not configured — relay still works without it.
+    try:
+        from bot.alpaca.client import AlpacaClient
+        from bot.alpaca.config import AlpacaConfig
+
+        alpaca_cfg = AlpacaConfig.from_env()
+        client = AlpacaClient(alpaca_cfg)
+    except EnvironmentError as exc:
+        _log.warning("Trading loop disabled (Alpaca not configured): %s", exc)
+        return
+
+    from bot.control import db as dbmod
+    from bot.engine.config import ExecutionConfig
+    from bot.engine.session import ExecutionSession, WallClock
+    from bot.scanner.config import ScannerConfig
+    from bot.scanner.scanner import run_scan
+    from bot.ta.config import TAConfig
+
+    loop = asyncio.get_event_loop()
+    _log.info("Trading loop started (paper=%s)", alpaca_cfg.is_paper)
+
+    while True:
+        # ── 1. Check market hours ──────────────────────────────────────────
+        try:
+            clock = await loop.run_in_executor(None, client.get_clock)
+        except Exception as exc:
+            _log.warning("Could not fetch market clock: %s — retrying in 60s", exc)
+            await asyncio.sleep(60)
+            continue
+
+        if not clock.is_open:
+            next_open_str = clock.next_open
+            try:
+                next_open = datetime.fromisoformat(next_open_str)
+                now = datetime.now(tz=timezone.utc)
+                wait_sec = max(
+                    60,
+                    (next_open.astimezone(timezone.utc) - now).total_seconds() - 60,
+                )
+            except Exception:
+                wait_sec = 300
+            _log.info(
+                "Market closed — next open %s, sleeping %.0fs",
+                next_open_str,
+                wait_sec,
+            )
+            # Emit log to web dashboard if relay is connected
+            try:
+                await relay.emit_log(
+                    "system",
+                    "info",
+                    f"Market closed. Next open: {next_open_str}",
+                )
+            except Exception:
+                pass
+            await asyncio.sleep(min(wait_sec, 3600))
+            continue
+
+        # ── 2. Market is open — run a scan to populate active_tickers ─────
+        _log.info("Market is open — running pre-session scan")
+        try:
+            raw = dbmod.get_all_settings_raw(db)
+            _def_patterns = [
+                "bullish_engulfing",
+                "hammer",
+                "morning_star",
+                "bullish_continuation",
+            ]
+            scanner_cfg = ScannerConfig(
+                pre_open_lead_hours=dbmod.coerce_float(
+                    raw.get("pre_open_lead_hours"), 1.0
+                ),
+                scan_duration_hours=dbmod.coerce_float(
+                    raw.get("scan_duration_hours"), 3.0
+                ),
+                relative_volume_min=dbmod.coerce_float(
+                    raw.get("relative_volume_min"), 2.0
+                ),
+                gap_up_min_pct=dbmod.coerce_float(raw.get("gap_up_min_pct"), 5.0),
+                max_float_shares=dbmod.coerce_int(
+                    raw.get("max_float_shares"), 20_000_000
+                ),
+                include_unknown_float=dbmod.coerce_bool(
+                    raw.get("include_unknown_float"), True
+                ),
+                active_tickers_n=dbmod.coerce_int(raw.get("active_tickers_n"), 5),
+                require_news=dbmod.coerce_bool(raw.get("require_news"), True),
+            )
+            ta_cfg = TAConfig(
+                macd_fast=dbmod.coerce_int(raw.get("macd_fast"), 12),
+                macd_slow=dbmod.coerce_int(raw.get("macd_slow"), 26),
+                macd_signal=dbmod.coerce_int(raw.get("macd_signal"), 9),
+                macd_enforce_above_zero=dbmod.coerce_bool(
+                    raw.get("macd_enforce_above_zero"), False
+                ),
+                pattern_candle_lookback=dbmod.coerce_int(
+                    raw.get("pattern_candle_lookback"), 5
+                ),
+                enabled_patterns=dbmod.coerce_list(raw.get("enabled_patterns"))
+                or _def_patterns,
+            )
+            watchlist = dbmod.coerce_list(raw.get("watchlist")) or []
+
+            def _run_scan() -> object:
+                assets = client.list_assets()
+                symbols = list(
+                    {a.symbol for a in assets if a.tradable} | set(watchlist)
+                )
+                return run_scan(
+                    symbols=symbols,
+                    client=client,
+                    config=scanner_cfg,
+                    ta_config=ta_cfg,
+                    news_by_symbol={},
+                )
+
+            scan_result = await loop.run_in_executor(None, _run_scan)
+
+            if scan_result is not None:
+                scan_ts = int(_time.time())
+                db.execute("DELETE FROM active_tickers")
+                for t in scan_result.candidates:
+                    db.execute(
+                        """INSERT OR REPLACE INTO active_tickers
+                           (symbol, price, volume, macd, signal, state, updated_at,
+                            gap_pct, rvol, float_shares, unknown_float, scanner_tradable,
+                            pct_change, macd_state_json, pattern_tags_json, role, score)
+                           VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            t.symbol,
+                            t.price,
+                            t.macd_state.value,
+                            t.macd_state.value,
+                            "active"
+                            if t.symbol in scan_result.active_set
+                            else "watching",
+                            scan_ts,
+                            t.gap_pct,
+                            t.rvol,
+                            t.float_shares,
+                            1 if t.unknown_float else 0,
+                            1 if t.tradable else 0,
+                            t.pct_change,
+                            _json.dumps(
+                                {
+                                    "value": t.macd_state.value,
+                                    "slope": t.macd_state.slope,
+                                    "favorability": t.macd_state.favorability,
+                                    "eligible": t.macd_state.eligible,
+                                }
+                            ),
+                            _json.dumps(t.pattern_tags),
+                            t.role,
+                            t.score,
+                        ),
+                    )
+                db.commit()
+                ranked = list(scan_result.active_set)
+                _log.info(
+                    "Pre-session scan complete: %d candidates, active=%s",
+                    len(scan_result.candidates),
+                    ranked,
+                )
+                try:
+                    await relay.emit_log(
+                        "system",
+                        "info",
+                        f"Scan complete: {len(scan_result.candidates)} candidates, "
+                        f"active={ranked}",
+                    )
+                except Exception:
+                    pass
+            else:
+                ranked = []
+                _log.info("Pre-session scan: outside window, no results")
+        except Exception:
+            _log.exception("Pre-session scan error")
+            ranked = []
+
+        # Pull active tickers from DB if scan didn't produce results
+        if not ranked:
+            rows = db.execute(
+                "SELECT symbol FROM active_tickers WHERE state='active' ORDER BY score DESC"
+            ).fetchall()
+            ranked = [r[0] for r in rows]
+
+        # ── 3. Build ExecutionConfig + start session ───────────────────────
+        raw = dbmod.get_all_settings_raw(db)
+        exec_cfg = ExecutionConfig(
+            active_tickers_n=dbmod.coerce_int(raw.get("active_tickers_n"), 5),
+            stop_loss_pct=dbmod.coerce_float(raw.get("stop_loss_pct"), 2.0),
+            take_profit_pct=dbmod.coerce_float(raw.get("take_profit_pct"), 4.0),
+            daily_max_loss_pct=dbmod.coerce_float(raw.get("daily_max_loss_pct"), 5.0),
+            daily_profit_target_pct=dbmod.coerce_float(
+                raw.get("daily_profit_target_pct"), 7.0
+            ),
+            override_risk_per_trade=dbmod.coerce_bool(
+                raw.get("override_risk_per_trade"), False
+            ),
+            risk_per_trade_pct=dbmod.coerce_float(raw.get("risk_per_trade_pct"), 1.0),
+            flatten_on_max_loss=dbmod.coerce_bool(
+                raw.get("flatten_on_daily_loss"), True
+            ),
+            flatten_on_profit_target=dbmod.coerce_bool(
+                raw.get("flatten_on_daily_profit"), False
+            ),
+            daily_target_mode=raw.get("daily_target_mode") or "giveback",  # type: ignore[arg-type]
+            daily_giveback_pct=dbmod.coerce_float(raw.get("daily_giveback_pct"), 25.0),
+            exit_mode=raw.get("exit_mode") or "trail_off",  # type: ignore[arg-type]
+            trail_off_trigger=raw.get("trail_off_trigger") or "candle_pattern",  # type: ignore[arg-type]
+            trail_off_fraction_per_candle=dbmod.coerce_float(
+                raw.get("trail_off_fraction_per_candle"), 0.25
+            ),
+            force_close_at_close=dbmod.coerce_bool(
+                raw.get("force_close_at_close"), True
+            ),
+        )
+
+        # Fetch today's calendar entry for exact open/close times
+        today_str = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d")
+        try:
+            calendar = await loop.run_in_executor(
+                None, lambda: client.get_calendar(today_str, today_str)
+            )
+        except Exception:
+            _log.warning("Could not fetch calendar, using clock fallback")
+            calendar = []
+
+        if calendar:
+            # Parse "HH:MM" Eastern time into UTC datetimes
+            import zoneinfo
+            from datetime import date as _date
+
+            eastern = zoneinfo.ZoneInfo("America/New_York")
+            cal_date = _date.fromisoformat(calendar[0].date)
+            open_h, open_m = (int(x) for x in calendar[0].open.split(":"))
+            close_h, close_m = (int(x) for x in calendar[0].close.split(":"))
+            session_open = datetime(
+                cal_date.year,
+                cal_date.month,
+                cal_date.day,
+                open_h,
+                open_m,
+                tzinfo=eastern,
+            ).astimezone(timezone.utc)
+            session_close = datetime(
+                cal_date.year,
+                cal_date.month,
+                cal_date.day,
+                close_h,
+                close_m,
+                tzinfo=eastern,
+            ).astimezone(timezone.utc)
+        else:
+            now = datetime.now(tz=timezone.utc)
+            session_open = now
+            session_close = now + timedelta(hours=6, minutes=30)
+
+        wall_clock = WallClock(session_open, session_close)
+        session = ExecutionSession(client=client, clock=wall_clock, config=exec_cfg)
+
+        try:
+            await loop.run_in_executor(None, session.start_day)
+            _log.info("Execution session started for %s", today_str)
+            try:
+                await relay.emit_log(
+                    "system", "info", f"Trading session started for {today_str}"
+                )
+            except Exception:
+                pass
+        except Exception:
+            _log.exception("session.start_day() failed — skipping trading today")
+            await asyncio.sleep(300)
+            continue
+
+        # ── 4. Per-minute execution cycle ─────────────────────────────────
+        while True:
+            await asyncio.sleep(60)
+
+            now_utc = datetime.now(tz=timezone.utc)
+
+            # Re-check market clock; stop loop when market closes
+            if now_utc >= session_close + timedelta(minutes=1):
+                _log.info("Market closed — ending session for %s", today_str)
+                try:
+                    await loop.run_in_executor(None, session.end_day)
+                except Exception:
+                    _log.exception("session.end_day() error")
+                try:
+                    await relay.emit_log(
+                        "system", "info", f"Trading session ended for {today_str}"
+                    )
+                except Exception:
+                    pass
+                break  # outer while will pick up next market day
+
+            # Refresh ranked symbols from DB (scan trigger may have updated them)
+            rows = db.execute(
+                "SELECT symbol FROM active_tickers WHERE state='active' ORDER BY score DESC"
+            ).fetchall()
+            current_ranked = [r[0] for r in rows] or ranked
+
+            if not current_ranked:
+                _log.debug("No active tickers — skipping cycle")
+                continue
+
+            # Fetch intraday bars for each symbol
+            try:
+                day_start = session_open - timedelta(minutes=1)
+                now_fetch = datetime.now(tz=timezone.utc)
+
+                def _fetch_bars(
+                    syms: list[str] = current_ranked,
+                ) -> dict:
+                    bars: dict = {}
+                    for sym in syms:
+                        try:
+                            bars[sym] = client.get_bars(sym, day_start, now_fetch)
+                        except Exception as e:
+                            _log.debug("Bar fetch failed for %s: %s", sym, e)
+                    return bars
+
+                bars_by_sym = await loop.run_in_executor(None, _fetch_bars)
+            except Exception:
+                _log.exception("Bar fetch error — skipping cycle")
+                continue
+
+            # Run execution cycle in thread pool (synchronous)
+            try:
+                result = await loop.run_in_executor(
+                    None, lambda: session.run_cycle(current_ranked, bars_by_sym)
+                )
+            except Exception:
+                _log.exception("Execution cycle error")
+                continue
+
+            # Persist any new orders and emit log events
+            now_ts = int(_time.time())
+            for order in result.orders_submitted:
+                try:
+                    db.execute(
+                        """INSERT OR IGNORE INTO orders
+                           (id, symbol, side, order_type, quantity, limit_price,
+                            filled_price, filled_quantity, status,
+                            broker_order_id, created_at, updated_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        (
+                            order.id,
+                            order.symbol,
+                            order.side.value,
+                            order.order_type.value,
+                            float(order.qty),
+                            float(order.limit_price) if order.limit_price else None,
+                            float(order.filled_avg_price)
+                            if order.filled_avg_price
+                            else None,
+                            float(order.filled_qty),
+                            order.status.value,
+                            order.id,
+                            now_ts,
+                            now_ts,
+                        ),
+                    )
+                except Exception:
+                    pass
+            if result.orders_submitted:
+                db.commit()
+
+            # Forward session log messages to relay
+            for msg in result.log_messages:
+                _log.info("[session] %s", msg)
+                try:
+                    category = (
+                        "trade"
+                        if any(
+                            k in msg.lower()
+                            for k in ("buy", "sell", "enter", "exit", "order")
+                        )
+                        else "system"
+                    )
+                    await relay.emit_log(category, "info", msg)
+                except Exception:
+                    pass
+            result.log_messages.clear()
+
+
 def main() -> None:
     config_dir = _config_dir()
 
@@ -505,6 +1104,9 @@ async def _run(config_dir: Path) -> None:
     db.execute("PRAGMA foreign_keys = ON")
     _init_db(db)
 
+    # Migrate wizard config.json into DB (no-op if keys already exist)
+    _load_config_json_into_db(config_dir, db)
+
     _local_api_mod._db_path = db_path
 
     relay = RelayClient(
@@ -520,7 +1122,12 @@ async def _run(config_dir: Path) -> None:
     )
     server = uvicorn.Server(uv_config)
 
-    await asyncio.gather(relay.run(), server.serve())
+    await asyncio.gather(
+        relay.run(),
+        server.serve(),
+        _scan_loop(db),
+        _trading_loop(db, relay),
+    )
 
 
 if __name__ == "__main__":

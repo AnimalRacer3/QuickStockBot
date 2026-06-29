@@ -457,7 +457,8 @@ class TestGivebackSettingsHandlers:
             """
         )
         result = handle_update_settings(
-            conn, {"patch": {"daily_target_mode": "stop", "daily_giveback_pct": 30.0}}
+            conn,
+            {"patch": {"daily_target_mode": "stop", "daily_giveback_pct": 30.0}},
         )
         assert result["daily_target_mode"] == "stop"
         assert result["daily_giveback_pct"] == pytest.approx(30.0)

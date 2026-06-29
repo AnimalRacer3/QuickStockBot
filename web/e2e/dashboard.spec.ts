@@ -47,10 +47,10 @@ test.describe("Dashboard e2e", () => {
     // Wait for settings to load from relay
     await expect(page.getByText("Exit Mode")).toBeVisible({ timeout: 10000 });
     // Trail Off fields should be hidden initially
-    await expect(page.getByText("Trail Off Trigger (%)")).not.toBeVisible();
+    await expect(page.getByText("Trail Off Trigger")).not.toBeVisible();
     // Select trail_off radio — the label wraps the input, so click the label text
     await page.locator("label", { hasText: /^Trail Off$/ }).click();
-    await expect(page.getByText("Trail Off Trigger (%)")).toBeVisible();
+    await expect(page.getByText("Trail Off Trigger")).toBeVisible();
     await page.getByRole("button", { name: "Save Settings" }).click();
     await expect(page.getByText("Settings saved.")).toBeVisible({ timeout: 5000 });
   });
