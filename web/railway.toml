@@ -1,6 +1,5 @@
 [build]
-builder = "nixpacks"
-buildCommand = "npm run db:generate && npm run build"
+builder = "dockerfile"
 
 [deploy]
 startCommand = "CHECKPOINT_DISABLE=1 node node_modules/prisma/build/index.js db push && node_modules/.bin/next start -p ${PORT:-3000}"
