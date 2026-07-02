@@ -45,14 +45,27 @@ build_exe.py           PyInstaller one-file build script
 - **Robinhood MCP** (brokerage layer, authoritative for account state and
   execution): account equity/buying power, positions, a fresh quote
   sanity-check immediately before every order, and all order placement. The
-  bot connects as a plain MCP client to whatever Robinhood MCP server is
-  already configured for Claude Code on the machine (read from `.mcp.json`
-  or `~/.claude.json`, falling back to `claude mcp list`) and reuses its
-  stored auth. Tool names are **never hardcoded** -- at startup the bot lists
-  the server's tools and fuzzy-maps them to the roles it needs
-  (`get_account`, `get_positions`, `get_quote`, `place_order`,
-  `cancel_order`, `order_status`), failing loudly if a role can't be found
-  or auth is rejected.
+  bot connects as a plain MCP client to the same Robinhood MCP server
+  already configured for Claude Code on the machine (URL/command read from
+  `.mcp.json` or `~/.claude.json`, falling back to `claude mcp list`). Tool
+  names are **never hardcoded** -- at startup the bot lists the server's
+  tools and fuzzy-maps them to the roles it needs (`get_account`,
+  `get_positions`, `get_quote`, `place_order`, `cancel_order`,
+  `order_status`), failing loudly if a role can't be found or auth is
+  rejected.
+
+  For a remote (http/sse) server that requires OAuth -- as Robinhood's
+  does -- the bot **cannot** literally reuse Claude Code's own token: Claude
+  Code's dynamic client registration is tied to its own `client_id`, and its
+  tokens live in its own credential store. Instead the bot performs the same
+  standards-based MCP OAuth flow itself the first time it connects: a
+  browser window opens for a one-time consent against your Robinhood
+  account, and the resulting tokens are cached at `.mcp_auth/<server>.json`
+  next to the exe (auto-refreshed after that, so every later run is
+  silent -- no browser). If a browser doesn't open automatically, the
+  console prints the authorization URL to open manually. This step can take
+  a couple of minutes on the first run, hence `--selftest`'s generous
+  connection timeout.
 - **Anthropic API** (judgment layer, one call/day): `ANTHROPIC_API_KEY` in
   `.env`. Used only for the 9:15 catalyst-verification/ranking call, with
   the server-side web-search tool enabled. The model is a config option

@@ -46,7 +46,9 @@ def _check_robinhood_mcp() -> CheckResult:
 
         spec = discover_robinhood_mcp_server()
         client = RobinhoodMCPClient(spec)
-        client.connect(timeout=30.0)
+        if spec.transport in ("http", "sse"):
+            print(f"Connecting to {spec.name!r} ({spec.url})... a browser may open for one-time OAuth consent.")
+        client.connect()  # generous default timeout -- see RobinhoodMCPClient.connect()
         role_map = dict(client.role_map)
         client.close()
         return CheckResult("Robinhood MCP", True, f"roles mapped: {role_map}")
