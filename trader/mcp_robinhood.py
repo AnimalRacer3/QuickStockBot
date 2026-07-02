@@ -59,7 +59,8 @@ class MCPServerSpec:
     args: list[str] = field(default_factory=list)
     env: dict[str, str] = field(default_factory=dict)
     url: str | None = None
-    transport: str = "stdio"  # "stdio" | "sse" | "http"
+    headers: dict[str, str] = field(default_factory=dict)
+    transport: str = "stdio"  # "stdio" | "sse" | "http" ("http" = MCP Streamable HTTP)
 
 
 def _load_mcp_servers_from_file(path: Path) -> dict[str, Any]:
@@ -72,8 +73,10 @@ def _load_mcp_servers_from_file(path: Path) -> dict[str, Any]:
 
 def _spec_from_raw(name: str, raw: dict[str, Any]) -> MCPServerSpec:
     if "url" in raw:
-        transport = raw.get("transport") or raw.get("type") or "sse"
-        return MCPServerSpec(name=name, url=raw["url"], transport=transport)
+        # Claude Code's config uses "type" for remote servers: "sse" (legacy) or
+        # "http" (MCP Streamable HTTP, the modern default for most hosted servers).
+        transport = raw.get("transport") or raw.get("type") or "http"
+        return MCPServerSpec(name=name, url=raw["url"], headers=dict(raw.get("headers", {})), transport=transport)
     return MCPServerSpec(
         name=name,
         command=raw.get("command"),
@@ -81,6 +84,22 @@ def _spec_from_raw(name: str, raw: dict[str, Any]) -> MCPServerSpec:
         env=dict(raw.get("env", {})),
         transport="stdio",
     )
+
+
+def _describe_exception(exc: BaseException) -> str:
+    """Unwrap ExceptionGroup/TaskGroup errors into a readable, non-vague message.
+
+    anyio TaskGroups (used by the mcp SDK's transports) wrap the real failure
+    in a bare `ExceptionGroup`, whose default `str()` is the unhelpful
+    "unhandled errors in a TaskGroup (N sub-exception(s))" -- this recurses
+    into `.exceptions` to surface what actually failed (e.g. an HTTP 401,
+    a TLS error, a DNS failure).
+    """
+    sub_exceptions = getattr(exc, "exceptions", None)
+    if not sub_exceptions:
+        return f"{type(exc).__name__}: {exc}"
+    parts = [_describe_exception(sub) for sub in sub_exceptions]
+    return f"{type(exc).__name__}({'; '.join(parts)})"
 
 
 def _looks_like_robinhood(name: str, raw: dict[str, Any]) -> bool:
@@ -210,7 +229,16 @@ class RobinhoodMCPClient:
             self._ready.set()
             self._loop.run_forever()
         except Exception as exc:  # noqa: BLE001
-            self._error = exc
+            # Wrap anything that isn't already a clear MCPConfigError so a raw
+            # anyio ExceptionGroup ("unhandled errors in a TaskGroup (1
+            # sub-exception)") never reaches the caller without its real cause.
+            if isinstance(exc, MCPConfigError):
+                self._error = exc
+            else:
+                self._error = MCPConfigError(
+                    f"Failed to connect to Robinhood MCP server {self.spec.name!r} "
+                    f"({self.spec.transport} {self.spec.url or self.spec.command}): {_describe_exception(exc)}"
+                )
             self._ready.set()
 
     async def _connect_async(self) -> None:
@@ -228,12 +256,25 @@ class RobinhoodMCPClient:
                 env={**os.environ, **self.spec.env},
             )
             read, write = await self._exit_stack.enter_async_context(stdio_client(params))
-        elif self.spec.transport in ("sse", "http"):
+        elif self.spec.transport == "sse":
             from mcp.client.sse import sse_client
 
             if not self.spec.url:
                 raise MCPConfigError(f"MCP server {self.spec.name!r} has no url configured")
-            read, write = await self._exit_stack.enter_async_context(sse_client(self.spec.url))
+            read, write = await self._exit_stack.enter_async_context(
+                sse_client(self.spec.url, headers=self.spec.headers or None)
+            )
+        elif self.spec.transport == "http":
+            from mcp.client.streamable_http import streamablehttp_client
+
+            if not self.spec.url:
+                raise MCPConfigError(f"MCP server {self.spec.name!r} has no url configured")
+            # Streamable HTTP yields a 3-tuple (read, write, get_session_id) -- unlike
+            # stdio/SSE's 2-tuple -- which is the bug that caused a raw TaskGroup
+            # failure here before: unpacking it as (read, write) desyncs the streams.
+            read, write, _get_session_id = await self._exit_stack.enter_async_context(
+                streamablehttp_client(self.spec.url, headers=self.spec.headers or None)
+            )
         else:
             raise MCPConfigError(f"Unsupported MCP transport {self.spec.transport!r}")
 
@@ -243,7 +284,7 @@ class RobinhoodMCPClient:
         except Exception as exc:  # noqa: BLE001
             raise MCPConfigError(
                 f"Robinhood MCP server {self.spec.name!r} rejected initialization "
-                f"(likely an auth failure): {exc}"
+                f"(likely an auth failure): {_describe_exception(exc)}"
             ) from exc
 
         self._session = session
