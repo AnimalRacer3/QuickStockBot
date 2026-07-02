@@ -46,6 +46,7 @@ class DayState:
     force_close_time: datetime
     no_trade_cutoff_time: datetime
     frozen_watchlist: set[str] = field(default_factory=set)
+    watchlist_entries: dict[str, WatchlistEntry] = field(default_factory=dict)
     positions: dict[str, Position] = field(default_factory=dict)
     candle_history: dict[str, list[Candle]] = field(default_factory=dict)
     vwap_history: dict[str, list[float]] = field(default_factory=dict)
@@ -56,6 +57,10 @@ class DayState:
     no_trade_cutoff_hit: bool = False
     data_feed_ok: bool = True
     shutdown_reason: str | None = None
+    # True only for `--replay`; relaxes the require_news_catalyst gate (recorded
+    # fixtures carry no real catalyst) instead of failing it silently.
+    is_replay: bool = False
+    catalyst_bypass_logged: set[str] = field(default_factory=set)
 
 
 def build_day_state(config: Config, session: SessionInfo, starting_equity: float, buying_power: float) -> DayState:
@@ -74,6 +79,7 @@ def build_day_state(config: Config, session: SessionInfo, starting_equity: float
 
 def freeze_watchlist(state: DayState, entries: list[WatchlistEntry]) -> None:
     state.frozen_watchlist = {e.ticker for e in entries}
+    state.watchlist_entries = {e.ticker: e for e in entries}
     for ticker in state.frozen_watchlist:
         state.candle_history.setdefault(ticker, [])
         state.vwap_history.setdefault(ticker, [])
@@ -88,6 +94,15 @@ def _pattern_enabled_map(config: Config) -> dict[str, bool]:
         "pullback": p.pullback,
         "breakout_base": p.breakout_base,
     }
+
+
+_MISSING_CATALYST_VALUES = {"", "n/a", "na", "none", "unknown", "tbd"}
+
+
+def _has_news_catalyst(entry: WatchlistEntry | None) -> bool:
+    if entry is None:
+        return False
+    return entry.catalyst.strip().lower() not in _MISSING_CATALYST_VALUES
 
 
 def on_new_candle(
@@ -113,7 +128,11 @@ def on_new_candle(
 
     if ticker not in state.frozen_watchlist:
         return
-    if state.kill_switch_hit or state.no_trade_cutoff_hit:
+    if state.kill_switch_hit:
+        journal.record_skip(ticker, "kill_switch_hit")
+        return
+    if state.no_trade_cutoff_hit:
+        journal.record_skip(ticker, "no_trade_cutoff_hit")
         return
     if len(state.positions) >= config.max_positions:
         journal.record_skip(ticker, "max_positions_reached")
@@ -125,6 +144,7 @@ def on_new_candle(
         journal.record_skip(ticker, "profit_giveback_lockout")
         return
 
+    # --- candlestick pattern -------------------------------------------------
     matches = patterns.detect_all(
         history,
         enabled=_pattern_enabled_map(config),
@@ -132,9 +152,11 @@ def on_new_candle(
         high_of_day=state.high_of_day[ticker],
     )
     if not matches:
+        journal.record_skip(ticker, "no_pattern")
         return
     match = matches[0]
 
+    # --- gate: 0 < pct_above_VWAP <= overextension_pct -----------------------
     price = candle.close
     pct_above_vwap = indicators.pct_above_vwap(price, vwap_values[-1])
     if pct_above_vwap < 0:
@@ -143,15 +165,41 @@ def on_new_candle(
     if pct_above_vwap > config.overextension_pct:
         journal.record_skip(ticker, "overextended", details=f"pct={pct_above_vwap:.2f}")
         return
-    if not indicators.macd_is_bullish(
-        [c.close for c in history], config.macd.fast, config.macd.slow, config.macd.signal, config.macd.mode
-    ):
-        journal.record_skip(ticker, "macd_not_bullish")
+
+    # --- gate: MACD positive_or_rising ---------------------------------------
+    closes = [c.close for c in history]
+    min_bars_for_macd = config.macd.slow + config.macd.signal
+    if len(closes) < min_bars_for_macd:
+        journal.record_skip(ticker, "missing_bars", details=f"have={len(closes)} need={min_bars_for_macd} (macd)")
         return
-    prior_5 = history[-6:-1]
-    if not prior_5 or not indicators.volume_confirmed(candle, prior_5):
-        journal.record_skip(ticker, "no_volume_confirmation")
+    if not indicators.macd_is_bullish(closes, config.macd.fast, config.macd.slow, config.macd.signal, config.macd.mode):
+        journal.record_skip(ticker, "macd_negative")
         return
+
+    # --- gate: RVOL >= min_rvol -----------------------------------------------
+    entry = state.watchlist_entries.get(ticker)
+    baseline = entry.avg_volume_baseline if entry else None
+    if not baseline:
+        journal.record_skip(ticker, "missing_rvol_baseline")
+        return
+    cumulative_volume = sum(c.volume for c in history)
+    rvol = indicators.relative_volume(cumulative_volume, baseline)
+    if rvol < config.min_rvol:
+        journal.record_skip(ticker, "rvol_low", details=f"rvol={rvol:.2f}")
+        return
+
+    # --- gate: require_news_catalyst -------------------------------------
+    if config.require_news_catalyst and not _has_news_catalyst(entry):
+        if state.is_replay:
+            if ticker not in state.catalyst_bypass_logged:
+                state.catalyst_bypass_logged.add(ticker)
+                logger.info(
+                    "REPLAY: bypassing require_news_catalyst gate for %s (fixture catalyst=%r)",
+                    ticker, entry.catalyst if entry else None,
+                )
+        else:
+            journal.record_skip(ticker, "no_catalyst")
+            return
 
     qty = risk.position_size(
         state.equity, state.buying_power, price, config.risk_per_trade_pct, config.stop_loss_pct, config.max_position_pct_bp
@@ -401,6 +449,7 @@ def run_live_day(config: Config, secrets, run_date: date | None = None) -> int:
             journal.append_run_summary(config.mode, "no_trade_day", selection.cost_usd, 0.0)
             return EXIT_OK
 
+        _attach_rvol_baselines(alpaca, survivors)
         freeze_watchlist(state, survivors)
 
         if config.is_live:
@@ -452,6 +501,18 @@ def run_live_day(config: Config, secrets, run_date: date | None = None) -> int:
         return exit_code
     finally:
         lock.release()
+
+
+def _attach_rvol_baselines(alpaca, entries: list[WatchlistEntry]) -> None:
+    """Fetches each surviving ticker's trailing average daily volume so the
+    RVOL entry gate has a baseline to compare against; leaves it `None` (and
+    lets the gate log missing_rvol_baseline) if the fetch fails."""
+    for entry in entries:
+        try:
+            entry.avg_volume_baseline = alpaca.get_avg_daily_volume(entry.ticker)
+        except Exception as exc:  # noqa: BLE001 - a baseline fetch failure must not kill the day
+            logger.warning("Could not fetch avg daily volume baseline for %s: %s", entry.ticker, exc)
+            entry.avg_volume_baseline = None
 
 
 def _revalidate_at_open(alpaca, entries: list[WatchlistEntry], config: Config) -> list[WatchlistEntry]:

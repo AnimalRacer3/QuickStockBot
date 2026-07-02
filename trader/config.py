@@ -112,11 +112,19 @@ _REQUIRED_TOP_LEVEL = [
 
 
 def load_config(path: Path | None = None) -> Config:
-    """Load config.yaml from the exe directory (or an explicit path)."""
+    """Load config.yaml from the exe directory (or an explicit path).
+
+    Relative `paths.*` entries are resolved against the directory containing
+    *this* config.yaml, not the caller's own app_dir() -- so passing an
+    explicit `path` (e.g. a trader.exe distribution's config.yaml from a
+    dev-machine script) makes fixtures/journals/etc. land next to that config,
+    matching exactly where trader.exe itself will look for them.
+    """
     base = app_dir()
     cfg_path = path or (base / "config.yaml")
     if not cfg_path.exists():
         raise ConfigError(f"config.yaml not found at {cfg_path}")
+    base = cfg_path.resolve().parent
 
     with open(cfg_path, "r", encoding="utf-8") as fh:
         raw: dict[str, Any] = yaml.safe_load(fh) or {}
@@ -201,9 +209,13 @@ class Secrets:
     anthropic_api_key: str
 
 
-def load_secrets() -> Secrets:
-    """Load secrets from a .env file next to the exe. Never hardcode these."""
-    env_path = app_dir() / ".env"
+def load_secrets(env_path: Path | None = None) -> Secrets:
+    """Load secrets from a .env file next to the exe (or an explicit path).
+
+    Pass `env_path` alongside an explicit `load_config(path)` to read the
+    same distribution directory's `.env` rather than the caller's own app_dir().
+    """
+    env_path = env_path or (app_dir() / ".env")
     if env_path.exists():
         load_dotenv(env_path, override=True)
 

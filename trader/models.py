@@ -65,6 +65,11 @@ class WatchlistEntry:
     catalyst: str
     rank: int
     screen_stats: dict = field(default_factory=dict)
+    # Average daily volume baseline (e.g. trailing 30 trading days), used by the
+    # RVOL entry gate. None means no baseline is available (live: fetch failed;
+    # replay: fixture predates baseline recording) -- callers must treat that as
+    # "can't evaluate RVOL", never as "RVOL passed".
+    avg_volume_baseline: float | None = None
 
 
 @dataclass

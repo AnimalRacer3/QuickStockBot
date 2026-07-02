@@ -48,7 +48,16 @@ def _load_watchlist(replay_dir, replay_date: date) -> list[WatchlistEntry]:
     if not path.exists():
         raise ReplayError(f"No saved watchlist found for replay: {path}")
     raw = json.loads(path.read_text(encoding="utf-8"))
-    return [WatchlistEntry(ticker=r["ticker"], reason=r["reason"], catalyst=r["catalyst"], rank=r["rank"]) for r in raw]
+    return [
+        WatchlistEntry(
+            ticker=r["ticker"],
+            reason=r["reason"],
+            catalyst=r["catalyst"],
+            rank=r["rank"],
+            avg_volume_baseline=r.get("avg_volume_baseline"),
+        )
+        for r in raw
+    ]
 
 
 def _load_bars(replay_dir, replay_date: date, ticker: str, tz: ZoneInfo) -> list[Candle]:
@@ -89,6 +98,7 @@ def run_replay(config: Config, replay_date: date) -> int:
     market_close = events[-1][0]
     session = build_session_info(replay_date, market_open, market_close, tz)
     state = build_day_state(config, session, SYNTHETIC_STARTING_EQUITY, SYNTHETIC_STARTING_EQUITY)
+    state.is_replay = True
     freeze_watchlist(state, watchlist)
     execution = ReplayExecutionEngine()
 

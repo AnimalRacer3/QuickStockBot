@@ -64,6 +64,19 @@ class AlpacaData:
         # account has a paid SIP subscription.
         self.feed = DataFeed(feed)
 
+    def _resolve_feed(self, start: datetime, end: datetime):
+        """IEX is real-time on every plan; SIP is the fuller consolidated tape
+        but free/basic plans 403 on any SIP request touching the last ~15
+        minutes. Any request whose range reaches into today needs IEX --
+        otherwise use whatever feed is configured (IEX by default, or SIP on a
+        paid plan for fully historical days)."""
+        from alpaca.data.enums import DataFeed
+
+        today = datetime.utcnow().date()
+        if start.date() >= today or end.date() >= today:
+            return DataFeed.IEX
+        return self.feed
+
     # -- screening ---------------------------------------------------------
 
     def screen_premarket_gappers(
@@ -166,7 +179,8 @@ class AlpacaData:
         start = end - timedelta(days=2)  # generous window; we slice to `limit` after
         try:
             request = StockBarsRequest(
-                symbol_or_symbols=symbol, timeframe=TimeFrame.Minute, start=start, end=end, limit=limit, feed=self.feed
+                symbol_or_symbols=symbol, timeframe=TimeFrame.Minute, start=start, end=end, limit=limit,
+                feed=self._resolve_feed(start, end),
             )
             bar_set = self.history_client.get_stock_bars(request)
         except Exception as exc:  # noqa: BLE001
@@ -184,7 +198,8 @@ class AlpacaData:
         start = end - timedelta(days=int(limit * 1.6) + 5)
         try:
             request = StockBarsRequest(
-                symbol_or_symbols=symbol, timeframe=TimeFrame.Day, start=start, end=end, limit=limit, feed=self.feed
+                symbol_or_symbols=symbol, timeframe=TimeFrame.Day, start=start, end=end, limit=limit,
+                feed=self._resolve_feed(start, end),
             )
             bar_set = self.history_client.get_stock_bars(request)
         except Exception as exc:  # noqa: BLE001
@@ -192,6 +207,16 @@ class AlpacaData:
 
         bars = bar_set.data.get(symbol, []) if hasattr(bar_set, "data") else bar_set.get(symbol, [])
         return [_bar_to_candle(b) for b in bars][-limit:]
+
+    def get_avg_daily_volume(self, symbol: str, lookback_days: int = 30) -> float | None:
+        """Trailing average daily volume, excluding today (today's volume is
+        partial and would understate/overstate a same-day RVOL baseline).
+        Used as the RVOL gate's baseline; `None` if no daily bars are available."""
+        daily_bars = self.get_daily_bars(symbol, limit=lookback_days + 1)
+        history_bars = [b for b in daily_bars if b.timestamp.date() < datetime.utcnow().date()]
+        if not history_bars:
+            return None
+        return sum(b.volume for b in history_bars) / len(history_bars)
 
     def get_minute_bars_for_day(self, symbol: str, day: object) -> list[Candle]:
         """Full day of 1-minute bars for `day` (a `datetime.date`) -- used by
@@ -203,7 +228,8 @@ class AlpacaData:
         end = start + timedelta(days=1)
         try:
             request = StockBarsRequest(
-                symbol_or_symbols=symbol, timeframe=TimeFrame.Minute, start=start, end=end, limit=1000, feed=self.feed
+                symbol_or_symbols=symbol, timeframe=TimeFrame.Minute, start=start, end=end, limit=1000,
+                feed=self._resolve_feed(start, end),
             )
             bar_set = self.history_client.get_stock_bars(request)
         except Exception as exc:  # noqa: BLE001
@@ -273,9 +299,13 @@ class AlpacaBarStream:
             self._thread.join(timeout=5)
 
     def _start_websocket(self) -> None:
+        from alpaca.data.enums import DataFeed
         from alpaca.data.live.stock import StockDataStream
 
-        stream = StockDataStream(self._api_key, self._api_secret, feed=self._data.feed)
+        # The live bar stream is always "today, right now" -- always use IEX
+        # (real-time on every plan) regardless of the configured feed, which
+        # may be SIP for historical requests elsewhere.
+        stream = StockDataStream(self._api_key, self._api_secret, feed=DataFeed.IEX)
 
         async def _handler(bar: object) -> None:
             candle = _bar_to_candle(bar)

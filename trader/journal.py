@@ -45,6 +45,7 @@ class SkipRecord:
     ticker: str
     reason: str
     details: str = ""
+    count: int = 1
 
 
 class Journal:
@@ -52,6 +53,8 @@ class Journal:
         self.paths = paths
         self.run_date = run_date
         self.paths.ensure()
+        self._skip_cache: list[dict[str, Any]] | None = None
+        self._skip_index: dict[tuple[str, str], int] = {}
 
     def _trades_path(self) -> Path:
         return self.paths.journal_dir / f"{self.run_date.isoformat()}-trades.json"
@@ -72,16 +75,34 @@ class Journal:
         )
 
     def record_skip(self, ticker: str, reason: str, details: str = "") -> None:
-        path = self._skips_path()
-        skips = self._read_json_list(path)
-        skips.append(asdict(SkipRecord(time=datetime.now().isoformat(), ticker=ticker, reason=reason, details=details)))
-        self._write_json_list(path, skips)
+        """Record one bar's skip outcome, deduped per (ticker, reason): repeat
+        occurrences bump `count` and refresh `time`/`details` in place rather
+        than appending a new row, so a whole day of identical rejections still
+        produces one explainable line instead of thousands."""
+        if self._skip_cache is None:
+            self._skip_cache = self._read_json_list(self._skips_path())
+            self._skip_index = {(s["ticker"], s["reason"]): i for i, s in enumerate(self._skip_cache)}
+
+        key = (ticker, reason)
+        now_iso = datetime.now().isoformat()
+        if key in self._skip_index:
+            record = self._skip_cache[self._skip_index[key]]
+            record["count"] = record.get("count", 1) + 1
+            record["time"] = now_iso
+            if details:
+                record["details"] = details
+        else:
+            self._skip_index[key] = len(self._skip_cache)
+            self._skip_cache.append(
+                asdict(SkipRecord(time=now_iso, ticker=ticker, reason=reason, details=details, count=1))
+            )
+        self._write_json_list(self._skips_path(), self._skip_cache)
 
     def skip_reason_counts(self) -> dict[str, int]:
         skips = self._read_json_list(self._skips_path())
         counts: dict[str, int] = {}
         for s in skips:
-            counts[s["reason"]] = counts.get(s["reason"], 0) + 1
+            counts[s["reason"]] = counts.get(s["reason"], 0) + s.get("count", 1)
         return counts
 
     def read_trades(self) -> list[dict[str, Any]]:
