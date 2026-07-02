@@ -46,7 +46,8 @@ class ScreenCandidate:
 class AlpacaData:
     """Wraps alpaca-py's trading + historical/live market-data clients."""
 
-    def __init__(self, api_key: str, api_secret: str, paper: bool = True):
+    def __init__(self, api_key: str, api_secret: str, paper: bool = True, feed: str = "iex"):
+        from alpaca.data.enums import DataFeed
         from alpaca.data.historical.screener import ScreenerClient
         from alpaca.data.historical.stock import StockHistoricalDataClient
         from alpaca.trading.client import TradingClient
@@ -56,6 +57,12 @@ class AlpacaData:
         self.screener_client = ScreenerClient(api_key, api_secret)
         self._api_key = api_key
         self._api_secret = api_secret
+        # Free/basic Alpaca market-data plans only permit the IEX feed; SIP
+        # (the request-level default when `feed` is omitted) 403s with
+        # "subscription does not permit querying recent SIP data" for any
+        # request touching the last ~15 minutes. Pass `feed="sip"` if the
+        # account has a paid SIP subscription.
+        self.feed = DataFeed(feed)
 
     # -- screening ---------------------------------------------------------
 
@@ -159,7 +166,7 @@ class AlpacaData:
         start = end - timedelta(days=2)  # generous window; we slice to `limit` after
         try:
             request = StockBarsRequest(
-                symbol_or_symbols=symbol, timeframe=TimeFrame.Minute, start=start, end=end, limit=limit
+                symbol_or_symbols=symbol, timeframe=TimeFrame.Minute, start=start, end=end, limit=limit, feed=self.feed
             )
             bar_set = self.history_client.get_stock_bars(request)
         except Exception as exc:  # noqa: BLE001
@@ -177,7 +184,7 @@ class AlpacaData:
         start = end - timedelta(days=int(limit * 1.6) + 5)
         try:
             request = StockBarsRequest(
-                symbol_or_symbols=symbol, timeframe=TimeFrame.Day, start=start, end=end, limit=limit
+                symbol_or_symbols=symbol, timeframe=TimeFrame.Day, start=start, end=end, limit=limit, feed=self.feed
             )
             bar_set = self.history_client.get_stock_bars(request)
         except Exception as exc:  # noqa: BLE001
@@ -196,7 +203,7 @@ class AlpacaData:
         end = start + timedelta(days=1)
         try:
             request = StockBarsRequest(
-                symbol_or_symbols=symbol, timeframe=TimeFrame.Minute, start=start, end=end, limit=1000
+                symbol_or_symbols=symbol, timeframe=TimeFrame.Minute, start=start, end=end, limit=1000, feed=self.feed
             )
             bar_set = self.history_client.get_stock_bars(request)
         except Exception as exc:  # noqa: BLE001
@@ -268,7 +275,7 @@ class AlpacaBarStream:
     def _start_websocket(self) -> None:
         from alpaca.data.live.stock import StockDataStream
 
-        stream = StockDataStream(self._api_key, self._api_secret)
+        stream = StockDataStream(self._api_key, self._api_secret, feed=self._data.feed)
 
         async def _handler(bar: object) -> None:
             candle = _bar_to_candle(bar)

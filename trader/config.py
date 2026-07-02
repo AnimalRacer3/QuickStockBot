@@ -90,6 +90,7 @@ class Config:
     require_news_catalyst: bool
     overextension_pct: float
     z_hour_cutoff: float
+    alpaca_data_feed: str
     macd: MACDConfig
     patterns: PatternToggles
     anthropic: AnthropicConfig
@@ -185,6 +186,7 @@ def load_config(path: Path | None = None) -> Config:
         require_news_catalyst=bool(raw["require_news_catalyst"]),
         overextension_pct=float(raw["overextension_pct"]),
         z_hour_cutoff=float(raw["z_hour_cutoff"]),
+        alpaca_data_feed=str(raw.get("alpaca_data_feed", "iex")),
         macd=macd,
         patterns=patterns,
         anthropic=anthropic_cfg,

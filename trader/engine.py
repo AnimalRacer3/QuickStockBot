@@ -318,7 +318,7 @@ def run_live_day(config: Config, secrets, run_date: date | None = None) -> int:
 
     try:
         try:
-            alpaca = AlpacaData(secrets.alpaca_key, secrets.alpaca_secret, paper=not config.is_live)
+            alpaca = AlpacaData(secrets.alpaca_key, secrets.alpaca_secret, paper=not config.is_live, feed=config.alpaca_data_feed)
             alpaca.get_account_equity_check()
         except AlpacaDataError as exc:
             logger.error("Alpaca connection failed at startup: %s", exc)

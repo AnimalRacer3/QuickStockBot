@@ -528,16 +528,25 @@ class RobinhoodMCPClient:
 def _map_tools_to_roles(tools: list[Any]) -> dict[str, str]:
     scores: list[tuple[float, str, str]] = []  # (score, role, tool_name)
     for tool in tools:
-        haystack = f"{tool.name} {tool.description or ''}".lower()
+        name = tool.name.lower()
+        description = (tool.description or "").lower()
         for role in _ROLE_PRIORITY:
-            score = float(sum(1 for kw in _ROLE_KEYWORDS[role] if kw in haystack))
+            keywords = _ROLE_KEYWORDS[role]
+            # A keyword actually appearing in the tool's *name* is a far
+            # stronger signal than merely appearing somewhere in its prose
+            # description -- e.g. a fundamentals tool's description might
+            # happen to mention "quote" without the tool being a quote tool.
+            # Without this split, a description-only match could accidentally
+            # outrank (or tie and win a coin-flip against) the real match.
+            name_score = sum(1 for kw in keywords if kw in name)
+            desc_score = sum(1 for kw in keywords if kw in description)
+            score = name_score * 5.0 + desc_score * 1.0
             if score <= 0:
                 continue
-            if tool.name.lower() == role:
+            if name == role:
                 score += 10
             score += _equity_bias(tool.name, role)
-            if score > 0:
-                scores.append((score, role, tool.name))
+            scores.append((score, role, tool.name))
 
     scores.sort(key=lambda t: t[0], reverse=True)
     role_map: dict[str, str] = {}
