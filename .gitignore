@@ -24,6 +24,11 @@ dist/
 .env.local
 .env.*.local
 
+# ─── QuickStockBot runtime artifacts ──────────────────────────────────────────
+build/
+*.spec
+/trading/
+
 # ─── Editors ──────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db

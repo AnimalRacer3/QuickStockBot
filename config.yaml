@@ -1,0 +1,64 @@
+# QuickStockBot / trader.exe configuration.
+# Lives next to trader.exe. Edited by hand. Secrets go in .env, never here.
+
+# DRY_RUN simulates fills and never sends live orders. Switch to LIVE only by
+# manually editing this file. On LIVE the bot prints a 10-second warning
+# banner (with the kill-switch dollar amount) before its first order each day.
+mode: DRY_RUN
+
+timezone: America/New_York
+
+# --- Account-level risk controls ---------------------------------------
+daily_kill_switch_pct: -10        # flatten everything if equity drops this % from the day's start
+max_positions: 5                  # concurrent open positions
+risk_per_trade_pct: 2             # % of equity risked per trade (used for share sizing)
+max_position_pct_bp: 25           # max position size as % of buying power
+daily_profit_giveback_pct: 25     # stop new entries after giving back this % of the day's green peak
+no_trade_cutoff_hours: 2          # if zero entries by open + N hours, stop for the day
+
+# --- Per-trade exit rules ------------------------------------------------
+stop_loss_pct: 1
+take_profit_pct: 3
+trail_off_trigger_pct: 1.5        # once up this %, start trailing off on weakening candles
+trail_off_scale_out_pct: 25       # % of remaining position sold per weakening/red candle
+force_close_offset_min: 5         # minutes before actual market close to flatten everything
+
+# --- Watchlist / screening ------------------------------------------------
+watchlist_size: 5
+price_min: 2
+price_max: 20
+min_rvol: 5
+max_float_millions: 20
+require_news_catalyst: true
+overextension_pct: 3              # max % above VWAP allowed for a fresh entry
+z_hour_cutoff: 1.0                # stop taking NEW entries this many hours before close
+
+macd:
+  fast: 12
+  slow: 26
+  signal: 9
+  mode: positive_or_rising        # "positive_or_rising" | "positive_only"
+
+# --- Candlestick pattern engine (each toggleable independently) ---------
+patterns:
+  morning_star: true
+  three_white_soldiers: true
+  rising_three_methods: true
+  pullback: true
+  breakout_base: true
+
+# --- Anthropic (9:15 ticker-selection call only) -------------------------
+anthropic:
+  model: claude-sonnet-4-6        # or a haiku model id for cheaper calls
+  max_tokens: 2000
+  max_candidates: 15
+
+# --- File layout (all relative to the exe's directory) -------------------
+paths:
+  base_dir: ./trading
+  journal_dir: ./trading/journal
+  logs_dir: ./trading/logs
+  replay_dir: ./trading/replay
+  performance_db: ./trading/performance_db.json
+  runs_csv: ./trading/runs.csv
+  reports_dir: ./trading
