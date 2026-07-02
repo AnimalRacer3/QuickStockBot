@@ -50,10 +50,24 @@ def _check_robinhood_mcp() -> CheckResult:
             print(f"Connecting to {spec.name!r} ({spec.url})... a browser may open for one-time OAuth consent.")
         client.connect()  # generous default timeout -- see RobinhoodMCPClient.connect()
         role_map = dict(client.role_map)
+        schemas = dict(client.tool_schemas)
         client.close()
+        _print_role_schemas(role_map, schemas)
         return CheckResult("Robinhood MCP", True, f"roles mapped: {role_map}")
     except Exception as exc:  # noqa: BLE001
         return CheckResult("Robinhood MCP", False, str(exc))
+
+
+def _print_role_schemas(role_map: dict[str, str], schemas: dict[str, dict]) -> None:
+    """Prints each mapped tool's real parameter names so a mismatch between
+    what execution.py sends and what the tool actually accepts is visible
+    before a live order ever gets placed, not discovered mid-trade."""
+    print("\nRobinhood MCP role -> tool -> parameters (verify these look right):")
+    for role, tool_name in role_map.items():
+        props = list(schemas.get(tool_name, {}).get("properties", {}).keys())
+        required = schemas.get(tool_name, {}).get("required", [])
+        print(f"  {role:14s} -> {tool_name:24s} params={props} required={required}")
+    print()
 
 
 def _check_anthropic(secrets: Secrets, model: str) -> CheckResult:

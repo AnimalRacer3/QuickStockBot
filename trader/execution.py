@@ -114,17 +114,56 @@ class ExecutionEngine:
     def _await_fill(self, order_id: str) -> float:
         deadline = time.monotonic() + self.order_poll_timeout
         while time.monotonic() < deadline:
-            status = self.mcp.order_status(order_id)
-            state = str(status.get("status", "")).lower()
+            payload = self.mcp.order_status(order_id)
+            order = _find_order_record(payload, order_id)
+            state = str(order.get("status", "")).lower()
             if state in ("filled", "complete", "completed"):
-                filled_price = status.get("filled_avg_price") or status.get("average_price") or status.get("price")
+                filled_price = order.get("filled_avg_price") or order.get("average_price") or order.get("price")
                 if filled_price is None:
-                    raise ExecutionError(f"Order {order_id} filled but no fill price returned: {status!r}")
+                    raise ExecutionError(f"Order {order_id} filled but no fill price returned: {order!r}")
                 return float(filled_price)
             if state in ("rejected", "cancelled", "canceled", "failed"):
                 raise ExecutionError(f"Order {order_id} did not fill: status={state}")
             time.sleep(1.0)
         raise ExecutionError(f"Order {order_id} did not fill within {self.order_poll_timeout}s")
+
+
+def _find_order_record(payload: Any, order_id: str) -> dict[str, Any]:
+    """Normalizes an order-status tool's response into a single order dict.
+
+    The role-mapped tool isn't guaranteed to be a purpose-built "get one
+    order's status" endpoint -- it may be a generic order-list tool that
+    returns every order regardless of the `order_id` we passed. Handles a
+    bare order dict, a bare list of orders, or a dict wrapping a list under
+    a common key (`orders`/`results`/`data`).
+    """
+    if isinstance(payload, dict):
+        current_id = str(payload.get("id") or payload.get("order_id") or "")
+        if current_id == str(order_id):
+            return payload
+        for key in ("orders", "results", "data"):
+            if isinstance(payload.get(key), list):
+                match = _find_in_order_list(payload[key], order_id)
+                if match is not None:
+                    return match
+                raise ExecutionError(f"Could not find order {order_id} in order-status response: {payload!r}")
+        # No id field and no recognizable list wrapper -- assume the payload
+        # already *is* the single order record (a purpose-built status tool
+        # need not echo the id back).
+        return payload
+    if isinstance(payload, list):
+        match = _find_in_order_list(payload, order_id)
+        if match is not None:
+            return match
+        raise ExecutionError(f"Could not find order {order_id} in order-status response: {payload!r}")
+    raise ExecutionError(f"Unexpected order-status payload shape for order {order_id}: {payload!r}")
+
+
+def _find_in_order_list(items: list[Any], order_id: str) -> dict[str, Any] | None:
+    for item in items:
+        if isinstance(item, dict) and str(item.get("id") or item.get("order_id") or "") == str(order_id):
+            return item
+    return None
 
 
 class ReplayExecutionEngine:
