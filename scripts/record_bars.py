@@ -17,27 +17,50 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from trader.alpaca_data import AlpacaData  # noqa: E402
+from trader.alpaca_data import AlpacaData, AlpacaDataError  # noqa: E402
 from trader.config import load_config, load_secrets  # noqa: E402
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Record a day of Alpaca bars for --replay")
-    parser.add_argument("--date", required=True, help="Date to record, YYYY-MM-DD")
+    parser.add_argument("--date", required=True, help="Date to record, YYYY-MM-DD (e.g. 2026-06-15)")
     parser.add_argument("--tickers", required=True, help="Comma-separated tickers, e.g. AAPL,TSLA")
     args = parser.parse_args()
 
-    record_date = date.fromisoformat(args.date)
+    try:
+        record_date = date.fromisoformat(args.date)
+    except ValueError:
+        print(f"--date must be YYYY-MM-DD (got {args.date!r}, e.g. 2026-06-15)", file=sys.stderr)
+        return 2
+    if record_date >= date.today():
+        print(
+            f"WARNING: {record_date} is today or in the future. Alpaca's free/basic data plan "
+            "restricts querying data from roughly the last 15 minutes -- record a fully "
+            "completed past trading day instead (--replay is meant for backtesting, not "
+            "watching today live)."
+        )
     tickers = [t.strip().upper() for t in args.tickers.split(",") if t.strip()]
 
     config = load_config()
     secrets = load_secrets()
-    alpaca = AlpacaData(secrets.alpaca_key, secrets.alpaca_secret, paper=True)
+    alpaca = AlpacaData(secrets.alpaca_key, secrets.alpaca_secret, paper=True, feed=config.alpaca_data_feed)
     config.paths.ensure()
 
     watchlist = []
     for rank, ticker in enumerate(tickers, start=1):
-        bars = alpaca.get_minute_bars_for_day(ticker, record_date)
+        try:
+            bars = alpaca.get_minute_bars_for_day(ticker, record_date)
+        except AlpacaDataError as exc:
+            if "sip" in str(exc).lower():
+                print(
+                    f"ERROR fetching {ticker}: {exc}\n"
+                    "  Your Alpaca plan doesn't permit recent SIP data. This request already uses "
+                    "config.yaml's alpaca_data_feed (default 'iex'), so if you're still seeing this, "
+                    "pick a date further in the past or check your Alpaca market-data subscription tier."
+                )
+            else:
+                print(f"ERROR fetching {ticker}: {exc}")
+            continue
         if not bars:
             print(f"WARNING: no bars returned for {ticker} on {record_date}; skipping.")
             continue

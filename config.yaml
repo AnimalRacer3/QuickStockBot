@@ -33,6 +33,11 @@ require_news_catalyst: true
 overextension_pct: 3              # max % above VWAP allowed for a fresh entry
 z_hour_cutoff: 1.0                # stop taking NEW entries this many hours before close
 
+# Alpaca market-data feed: "iex" works on every plan (including free/paper);
+# "sip" requires a paid market-data subscription but is the full consolidated
+# tape. Leave as "iex" unless you've upgraded your Alpaca data plan.
+alpaca_data_feed: iex
+
 macd:
   fast: 12
   slow: 26
