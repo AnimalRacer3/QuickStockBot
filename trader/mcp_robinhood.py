@@ -46,15 +46,38 @@ REQUIRED_ROLES = (
 # Keyword sets used to fuzzy-match a server's advertised tool name/description
 # to the role the bot needs. Order matters: more specific roles are matched
 # first so a generic "order" tool doesn't get grabbed by the wrong role.
+# Brokerage MCP servers commonly expose parallel equity/option tool families
+# (e.g. Robinhood's place_equity_order vs place_option_order) -- keywords here
+# deliberately avoid "equity"/"option" so both variants score identically on
+# substance, and `_equity_bias` below breaks the tie toward the equity tool
+# for the roles where that ambiguity actually shows up.
 _ROLE_KEYWORDS: dict[str, tuple[str, ...]] = {
-    "place_order": ("place_order", "submit_order", "create_order", "buy_stock", "sell_stock", "place_trade", "execute_order"),
+    "place_order": ("place_order", "submit_order", "create_order", "buy_stock", "sell_stock", "place_trade", "execute_order", "place"),
     "cancel_order": ("cancel_order", "cancel_trade", "cancel"),
-    "order_status": ("order_status", "get_order", "check_order", "order_info", "order_details"),
+    "order_status": ("order_status", "get_order", "check_order", "order_info", "order_details", "orders"),
     "get_quote": ("get_quote", "quote", "last_price", "market_price", "current_price"),
     "get_positions": ("get_positions", "positions", "holdings", "portfolio"),
-    "get_account": ("get_account", "account_info", "account_balance", "buying_power", "equity", "account"),
+    "get_account": ("get_account", "account_info", "account_balance", "buying_power", "account", "portfolio_summary"),
 }
 _ROLE_PRIORITY = ("place_order", "cancel_order", "order_status", "get_quote", "get_positions", "get_account")
+
+# Roles where a server may expose both an equity and an option tool that
+# match the same keywords (place/cancel/status/quote/positions) -- the bot
+# only trades equities, so bias toward names containing "equity" and away
+# from ones containing "option" without hardcoding either exact tool name.
+_EQUITY_BIASED_ROLES = {"place_order", "cancel_order", "order_status", "get_quote", "get_positions"}
+
+
+def _equity_bias(tool_name: str, role: str) -> float:
+    if role not in _EQUITY_BIASED_ROLES:
+        return 0.0
+    name = tool_name.lower()
+    bias = 0.0
+    if "equity" in name or "stock" in name:
+        bias += 3.0
+    if "option" in name or "crypto" in name:
+        bias -= 3.0
+    return bias
 
 
 class MCPConfigError(Exception):
@@ -316,6 +339,7 @@ class RobinhoodMCPClient:
         self._session: Any = None
         self._exit_stack: AsyncExitStack | None = None
         self.role_map: dict[str, str] = {}
+        self.tool_schemas: dict[str, dict[str, Any]] = {}
         self._ready = threading.Event()
         self._error: Exception | None = None
 
@@ -420,6 +444,7 @@ class RobinhoodMCPClient:
 
         tools_result = await session.list_tools()
         self.role_map = _map_tools_to_roles(tools_result.tools)
+        self.tool_schemas = {t.name: (t.inputSchema or {}) for t in tools_result.tools}
         missing = [r for r in REQUIRED_ROLES if r not in self.role_map]
         if missing:
             available = [t.name for t in tools_result.tools]
@@ -428,6 +453,34 @@ class RobinhoodMCPClient:
                 f"{missing}; available tools: {available}"
             )
         logger.info("Robinhood MCP role map: %s", self.role_map)
+        for role, tool_name in self.role_map.items():
+            props = list(self.tool_schemas.get(tool_name, {}).get("properties", {}).keys())
+            logger.info("  %s -> %s (params: %s)", role, tool_name, props)
+
+    def _build_oauth_provider(self) -> Any:
+        """Builds an httpx-compatible auth handler that does MCP's standard OAuth
+        2.1 dance (protected-resource discovery, dynamic client registration,
+        one-time browser consent) the first time, then transparently attaches
+        the cached (and auto-refreshed) bearer token on every request after."""
+        from mcp.client.auth import OAuthClientProvider
+        from mcp.shared.auth import OAuthClientMetadata
+
+        port = _reserve_loopback_port()
+        redirect_uri = f"http://127.0.0.1:{port}/callback"
+        storage_path = self.token_storage_path or _default_token_storage_path(self.spec.name)
+
+        return OAuthClientProvider(
+            server_url=self.spec.url,
+            client_metadata=OAuthClientMetadata(
+                client_name="QuickStockBot",
+                redirect_uris=[redirect_uri],
+                grant_types=["authorization_code", "refresh_token"],
+                response_types=["code"],
+            ),
+            storage=FileTokenStorage(storage_path),
+            redirect_handler=_oauth_redirect_handler,
+            callback_handler=_make_oauth_callback_handler(port),
+        )
 
     def _build_oauth_provider(self) -> Any:
         """Builds an httpx-compatible auth handler that does MCP's standard OAuth
@@ -502,9 +555,12 @@ def _map_tools_to_roles(tools: list[Any]) -> dict[str, str]:
     for tool in tools:
         haystack = f"{tool.name} {tool.description or ''}".lower()
         for role in _ROLE_PRIORITY:
-            score = sum(1 for kw in _ROLE_KEYWORDS[role] if kw in haystack)
+            score = float(sum(1 for kw in _ROLE_KEYWORDS[role] if kw in haystack))
+            if score <= 0:
+                continue
             if tool.name.lower() == role:
                 score += 10
+            score += _equity_bias(tool.name, role)
             if score > 0:
                 scores.append((score, role, tool.name))
 
