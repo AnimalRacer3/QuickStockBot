@@ -2,12 +2,21 @@
 
 The bot never talks to Robinhood directly. It connects, as a programmatic
 MCP client (the official `mcp` Python package), to whatever Robinhood MCP
-server is already configured for Claude Code on this machine, reusing its
-stored auth. Tool *names* are never hardcoded: at startup we list the
+server is already configured for Claude Code on this machine (same URL,
+same transport). Tool *names* are never hardcoded: at startup we list the
 server's tools and fuzzy-map them to the roles the bot needs
 (get_account, get_positions, get_quote, place_order, cancel_order,
 order_status). If auth is rejected or a required role can't be found among
 the server's tools, we fail loudly rather than guessing.
+
+Remote (http/sse) MCP servers that require OAuth -- as Robinhood's does --
+can't have Claude Code's own grant "reused" directly: Claude Code's OAuth
+client registration is specific to its own client_id, and its tokens live
+in its own credential store. Instead this client performs its own
+standards-based MCP OAuth flow (`mcp.client.auth.OAuthClientProvider`):
+dynamic client registration + a one-time browser consent against the same
+Robinhood account, then caches the resulting tokens locally so every run
+after the first is silent (automatic refresh, no browser).
 """
 
 from __future__ import annotations
@@ -175,10 +184,120 @@ def _parse_claude_mcp_get(name: str, output: str) -> MCPServerSpec | None:
         elif line.lower().startswith("url:"):
             url = line.split(":", 1)[1].strip()
     if url:
-        return MCPServerSpec(name=name, url=url, transport="sse")
+        return MCPServerSpec(name=name, url=url, transport="http")
     if command:
         return MCPServerSpec(name=name, command=command, args=args, transport="stdio")
     return None
+
+
+def _default_token_storage_path(server_name: str) -> Path:
+    from trader.config import app_dir
+
+    return app_dir() / ".mcp_auth" / f"{server_name}.json"
+
+
+class FileTokenStorage:
+    """`mcp.client.auth.TokenStorage` backed by a local JSON file, so the
+    one-time browser OAuth consent only ever has to happen once per machine
+    -- every later run finds the cached (and auto-refreshed) tokens."""
+
+    def __init__(self, path: Path):
+        self.path = path
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+
+    def _read(self) -> dict[str, Any]:
+        if not self.path.exists():
+            return {}
+        try:
+            return json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return {}
+
+    def _write(self, data: dict[str, Any]) -> None:
+        self.path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    async def get_tokens(self) -> Any:
+        from mcp.shared.auth import OAuthToken
+
+        data = self._read().get("tokens")
+        return OAuthToken.model_validate(data) if data else None
+
+    async def set_tokens(self, tokens: Any) -> None:
+        data = self._read()
+        data["tokens"] = tokens.model_dump(mode="json")
+        self._write(data)
+
+    async def get_client_info(self) -> Any:
+        from mcp.shared.auth import OAuthClientInformationFull
+
+        data = self._read().get("client_info")
+        return OAuthClientInformationFull.model_validate(data) if data else None
+
+    async def set_client_info(self, client_info: Any) -> None:
+        data = self._read()
+        data["client_info"] = client_info.model_dump(mode="json")
+        self._write(data)
+
+
+async def _oauth_redirect_handler(auth_url: str) -> None:
+    logger.info("Opening browser for MCP OAuth consent: %s", auth_url)
+    print(
+        "\nA browser window should open for MCP authorization "
+        "(first run only -- tokens are cached after this).\n"
+        f"If it doesn't open automatically, visit:\n{auth_url}\n"
+    )
+    import webbrowser
+
+    webbrowser.open(auth_url)
+
+
+def _reserve_loopback_port() -> int:
+    import socket
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    return port
+
+
+def _make_oauth_callback_handler(port: int):
+    """A one-shot local HTTP server that captures the OAuth redirect
+    (?code=...&state=...) on http://127.0.0.1:<port>/callback."""
+    import http.server
+    from urllib.parse import parse_qs, urlparse
+
+    result: dict[str, str | None] = {"code": None, "state": None}
+    done = threading.Event()
+
+    class _Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:  # noqa: N802 - required name by BaseHTTPRequestHandler
+            query = parse_qs(urlparse(self.path).query)
+            result["code"] = query.get("code", [None])[0]
+            result["state"] = query.get("state", [None])[0]
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(b"<html><body>Authorization complete. You can close this tab.</body></html>")
+            done.set()
+
+        def log_message(self, format_str: str, *args: Any) -> None:  # noqa: A002 - silence default access log
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", port), _Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True, name="mcp-oauth-callback")
+    thread.start()
+
+    async def callback_handler() -> tuple[str, str | None]:
+        try:
+            await asyncio.get_event_loop().run_in_executor(None, lambda: done.wait(300))
+        finally:
+            server.shutdown()
+        if result["code"] is None:
+            raise MCPConfigError("OAuth authorization was not completed (no code received within 5 minutes)")
+        return result["code"], result["state"]
+
+    return callback_handler
 
 
 class RobinhoodMCPClient:
@@ -189,8 +308,9 @@ class RobinhoodMCPClient:
     `place_order()`, etc. as plain blocking calls.
     """
 
-    def __init__(self, spec: MCPServerSpec):
+    def __init__(self, spec: MCPServerSpec, token_storage_path: Path | None = None):
         self.spec = spec
+        self.token_storage_path = token_storage_path
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
         self._session: Any = None
@@ -201,11 +321,18 @@ class RobinhoodMCPClient:
 
     # -- lifecycle ---------------------------------------------------------
 
-    def connect(self, timeout: float = 30.0) -> None:
+    def connect(self, timeout: float = 320.0) -> None:
+        """`timeout` defaults generously high because the very first connection
+        to an OAuth-protected server needs time for a human to complete the
+        browser consent step; subsequent runs reuse the cached token and
+        return almost immediately."""
         self._thread = threading.Thread(target=self._run_loop, daemon=True, name="mcp-robinhood")
         self._thread.start()
         if not self._ready.wait(timeout):
-            raise MCPConfigError(f"Timed out connecting to Robinhood MCP server {self.spec.name!r}")
+            raise MCPConfigError(
+                f"Timed out connecting to Robinhood MCP server {self.spec.name!r} after {timeout:.0f}s "
+                "(if a browser window opened asking you to authorize, complete it and rerun)"
+            )
         if self._error:
             raise self._error
 
@@ -262,7 +389,7 @@ class RobinhoodMCPClient:
             if not self.spec.url:
                 raise MCPConfigError(f"MCP server {self.spec.name!r} has no url configured")
             read, write = await self._exit_stack.enter_async_context(
-                sse_client(self.spec.url, headers=self.spec.headers or None)
+                sse_client(self.spec.url, headers=self.spec.headers or None, auth=self._build_oauth_provider())
             )
         elif self.spec.transport == "http":
             from mcp.client.streamable_http import streamablehttp_client
@@ -273,7 +400,9 @@ class RobinhoodMCPClient:
             # stdio/SSE's 2-tuple -- which is the bug that caused a raw TaskGroup
             # failure here before: unpacking it as (read, write) desyncs the streams.
             read, write, _get_session_id = await self._exit_stack.enter_async_context(
-                streamablehttp_client(self.spec.url, headers=self.spec.headers or None)
+                streamablehttp_client(
+                    self.spec.url, headers=self.spec.headers or None, auth=self._build_oauth_provider()
+                )
             )
         else:
             raise MCPConfigError(f"Unsupported MCP transport {self.spec.transport!r}")
@@ -299,6 +428,31 @@ class RobinhoodMCPClient:
                 f"{missing}; available tools: {available}"
             )
         logger.info("Robinhood MCP role map: %s", self.role_map)
+
+    def _build_oauth_provider(self) -> Any:
+        """Builds an httpx-compatible auth handler that does MCP's standard OAuth
+        2.1 dance (protected-resource discovery, dynamic client registration,
+        one-time browser consent) the first time, then transparently attaches
+        the cached (and auto-refreshed) bearer token on every request after."""
+        from mcp.client.auth import OAuthClientProvider
+        from mcp.shared.auth import OAuthClientMetadata
+
+        port = _reserve_loopback_port()
+        redirect_uri = f"http://127.0.0.1:{port}/callback"
+        storage_path = self.token_storage_path or _default_token_storage_path(self.spec.name)
+
+        return OAuthClientProvider(
+            server_url=self.spec.url,
+            client_metadata=OAuthClientMetadata(
+                client_name="QuickStockBot",
+                redirect_uris=[redirect_uri],
+                grant_types=["authorization_code", "refresh_token"],
+                response_types=["code"],
+            ),
+            storage=FileTokenStorage(storage_path),
+            redirect_handler=_oauth_redirect_handler,
+            callback_handler=_make_oauth_callback_handler(port),
+        )
 
     # -- sync call bridge ----------------------------------------------------
 
